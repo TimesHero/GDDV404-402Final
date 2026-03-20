@@ -193,6 +193,7 @@ MonoBehaviour:
   moveSpeed: 4
   rotationSpeed: 10
   groundOffset: 0
+  maxMovementPoints: 10
   visualRoot: {fileID: 691041812731655088}
   visualRotationOffsetEuler: {x: 0, y: 0, z: 0}
 --- !u!1001 &255654540684454843

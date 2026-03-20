@@ -23,13 +23,13 @@ public class GridDebugPainter : MonoBehaviour
     {
        inputActions.Enable();
        inputActions.Gameplay.PointerPosition.performed += OnPointerMove;
-       inputActions.Gameplay.Click.performed += OnClick;
+       inputActions.Gameplay.PaintClick.performed += OnPaintClick;
     }
 
     private void OnDisable()
     {
         inputActions.Gameplay.PointerPosition.performed -= OnPointerMove;
-        inputActions.Gameplay.Click.performed -= OnClick;
+        inputActions.Gameplay.PaintClick.performed -= OnPaintClick;
         inputActions.Disable();
     }
     private void OnPointerMove(InputAction.CallbackContext context)
@@ -37,7 +37,7 @@ public class GridDebugPainter : MonoBehaviour
         pointerPosition = context.ReadValue<Vector2>();
     }
 
-    private void OnClick(InputAction.CallbackContext context)
+    private void OnPaintClick(InputAction.CallbackContext context)
     {
         Ray ray = mainCamera.ScreenPointToRay(pointerPosition);
         

@@ -4,12 +4,12 @@ using System.Collections.Generic;
 
 public class TileSelector : MonoBehaviour
 {
-    [SerializeField] private UnitSpawner unitSpawner;
-    
     [Header("References")]
+    [SerializeField] private UnitSpawner unitSpawner;
     [SerializeField] private Camera mainCamera;
     [SerializeField] private LayerMask tileLayerMask;
     [SerializeField] private AStarPathFinder pathFinder;
+    [SerializeField] private GridRangeFinder rangeFinder;
     
     [Header("Hover Colors")]
     [SerializeField] public Color hoverColor = Color.darkMagenta;
@@ -21,10 +21,13 @@ public class TileSelector : MonoBehaviour
     private GridTile currentHoveredTile;
     private GridTile previousHoveredTile;
     
+    private GridUnit selectedUnit;
+    
     private GridTile selectedStartTile;
     private GridTile selectedTargetTile;
     
     private List<GridTile> currentPath = new List<GridTile>();
+    private Dictionary<GridTile, int> reachableTiles = new Dictionary<GridTile, int>();
     
     private void Awake()
     {
@@ -56,12 +59,18 @@ public class TileSelector : MonoBehaviour
     
     private void OnClick(InputAction.CallbackContext context)
     {
-        if (currentHoveredTile == null)
+         if (currentHoveredTile == null)
             return;
 
         if (pathFinder == null)
         {
             Debug.LogError("TileSelector: PathFinder reference is missing.");
+            return;
+        }
+
+        if (rangeFinder == null)
+        {
+            Debug.LogError("TileSelector: RangeFinder reference is missing.");
             return;
         }
 
@@ -75,23 +84,42 @@ public class TileSelector : MonoBehaviour
 
         if (activeUnit.IsMoving)
             return;
+        
+        if (selectedUnit == null)
+        {
+            if (currentHoveredTile != activeUnit.CurrentTile)
+                return;
 
-        ClearPathPreview();
+            SelectUnit(activeUnit);
+            return;
+        }
 
-        selectedStartTile = activeUnit.CurrentTile;
+        if (currentHoveredTile == selectedUnit.CurrentTile)
+        {
+            DeselectUnit();
+            return;
+        }
+
+        selectedStartTile = selectedUnit.CurrentTile;
         selectedTargetTile = currentHoveredTile;
+
+        if (!IsTileReachable(selectedTargetTile))
+        {
+            Debug.Log("Tile is outside movement range.");
+            return;
+        }
 
         List<GridTile> path = pathFinder.FindPath(selectedStartTile, selectedTargetTile);
 
         if (path == null)
         {
             Debug.Log("No path found.");
-            selectedStartTile = null;
-            selectedTargetTile = null;
             return;
         }
 
-        currentPath = path;
+        ClearPathPreview();
+
+        currentPath = new List<GridTile>(path);
 
         selectedStartTile.ShowAsStart();
         selectedTargetTile.ShowAsTarget();
@@ -104,12 +132,42 @@ public class TileSelector : MonoBehaviour
             tile.ShowAsPath();
         }
 
-        activeUnit.MoveAlongPath(path);
+        selectedUnit.MoveAlongPath(new List<GridTile>(path));
 
-        selectedStartTile = null;
-        selectedTargetTile = null;
+        DeselectUnit();
     }
     
+    private void SelectUnit(GridUnit unit)
+    {
+        if (unit == null)
+            return;
+
+        ClearPathPreview();
+        ClearReachableTiles();
+
+        selectedUnit = unit;
+        selectedStartTile = unit.CurrentTile;
+
+        if (selectedStartTile != null)
+            selectedStartTile.ShowAsStart();
+
+        ShowMovementRange(unit);
+
+        Debug.Log("Unit selected.");
+    }
+
+    private void DeselectUnit()
+    {
+        ClearPathPreview();
+        ClearReachableTiles();
+
+        selectedUnit = null;
+        selectedStartTile = null;
+        selectedTargetTile = null;
+
+        Debug.Log("Unit deselected.");
+    }
+
     private void HandleTileHover()
     {
         Ray ray = mainCamera.ScreenPointToRay(pointerPosition);
@@ -159,11 +217,60 @@ public class TileSelector : MonoBehaviour
     {
         if (tile == null)
             return false;
+        if (selectedUnit != null && tile == selectedUnit.CurrentTile)
+            return true;
         if (tile == selectedStartTile)
             return true;
         if (tile == selectedTargetTile)
             return true;
+        if (reachableTiles.ContainsKey(tile))
+            return true;
         
         return currentPath.Contains(tile);
+    }
+    
+    private void ShowMovementRange(GridUnit unit)
+    {
+        if (rangeFinder == null || unit == null || unit.CurrentTile == null)
+        {
+            Debug.LogError("TileSelector: RangeFinder, unit, or unit current tile is missing.");
+            return;
+        }
+
+        ClearReachableTiles();
+
+        reachableTiles = rangeFinder.GetReachableTiles(unit.CurrentTile, unit.MaxMovementPoints);
+
+        foreach (KeyValuePair<GridTile, int> pair in reachableTiles)
+        {
+            GridTile tile = pair.Key;
+
+            if (tile == null)
+                continue;
+
+            if (tile == unit.CurrentTile)
+                continue;
+
+            tile.ShowAsReachable();
+        }
+    }
+    
+    private void ClearReachableTiles()
+    {
+        foreach (KeyValuePair<GridTile, int> pair in reachableTiles)
+        {
+            if (pair.Key != null)
+                pair.Key.ResetHighlight();
+        }
+
+        reachableTiles.Clear();
+    }
+    
+    private bool IsTileReachable(GridTile tile)
+    {
+        if (tile == null)
+            return false;
+
+        return reachableTiles.ContainsKey(tile);
     }
 }
