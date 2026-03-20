@@ -136,4 +136,16 @@ public class GridTile : MonoBehaviour
                 break;
         }
     }
+    public void ShowAsPath()
+    {
+        SetHighlight(Color.darkBlue);
+    }
+    public void ShowAsStart()
+    {
+        SetHighlight(Color.darkGreen);
+    }
+    public void ShowAsTarget()
+    {
+        SetHighlight(Color.darkRed);
+    }
 }
