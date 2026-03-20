@@ -4,6 +4,8 @@ using System.Collections.Generic;
 
 public class TileSelector : MonoBehaviour
 {
+    [SerializeField] private UnitSpawner unitSpawner;
+    
     [Header("References")]
     [SerializeField] private Camera mainCamera;
     [SerializeField] private LayerMask tileLayerMask;
@@ -56,45 +58,54 @@ public class TileSelector : MonoBehaviour
     {
         if (currentHoveredTile == null)
             return;
+
         if (pathFinder == null)
         {
             Debug.LogError("TileSelector: PathFinder reference is missing.");
             return;
         }
-        if (selectedStartTile == null)
+
+        if (unitSpawner == null || unitSpawner.SpawnedUnit == null)
         {
-            ClearPathPreview();
-            
-            selectedStartTile = currentHoveredTile;
-            selectedStartTile.ShowAsStart();
-            Debug.Log($"Start tile selected: {selectedStartTile.X}, {selectedStartTile.Y}");
+            Debug.LogError("TileSelector: UnitSpawner or SpawnedUnit reference is missing.");
             return;
         }
-        
-        selectedTargetTile = currentHoveredTile;
-        List<GridTile> path = pathFinder.FindPath(selectedStartTile, selectedTargetTile);
+
+        GridUnit activeUnit = unitSpawner.SpawnedUnit;
+
+        if (activeUnit.IsMoving)
+            return;
 
         ClearPathPreview();
-        
-        selectedStartTile.ShowAsStart();
-        selectedTargetTile.ShowAsTarget();
-        
-        if (path != null)
-        {
-            currentPath = path;
-            foreach (GridTile tile in currentPath)
-            {
-                if (tile == selectedStartTile || tile == selectedTargetTile)
-                    continue;
-                tile.ShowAsPath();
-            }
-            Debug.Log($"Path found. Length: {currentPath.Count}");
-        }
-        else
+
+        selectedStartTile = activeUnit.CurrentTile;
+        selectedTargetTile = currentHoveredTile;
+
+        List<GridTile> path = pathFinder.FindPath(selectedStartTile, selectedTargetTile);
+
+        if (path == null)
         {
             Debug.Log("No path found.");
+            selectedStartTile = null;
+            selectedTargetTile = null;
+            return;
         }
-        
+
+        currentPath = path;
+
+        selectedStartTile.ShowAsStart();
+        selectedTargetTile.ShowAsTarget();
+
+        foreach (GridTile tile in currentPath)
+        {
+            if (tile == selectedStartTile || tile == selectedTargetTile)
+                continue;
+
+            tile.ShowAsPath();
+        }
+
+        activeUnit.MoveAlongPath(path);
+
         selectedStartTile = null;
         selectedTargetTile = null;
     }

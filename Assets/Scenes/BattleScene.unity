@@ -168,6 +168,54 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   selectedTerrain: 1
+--- !u!1 &99915197
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 99915198}
+  - component: {fileID: 99915199}
+  m_Layer: 0
+  m_Name: UnitSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &99915198
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 99915197}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1083233381}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &99915199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 99915197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e7f179aef786f64ab569c9eeec83bf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnitSpawner
+  gridManager: {fileID: 414890576}
+  playerUnitPrefab: {fileID: 5741040883839400063, guid: 2fb02295e3268c443bc2e59db1ac2f5d, type: 3}
+  unitParent: {fileID: 159763964}
+  spawnGridPosition: {x: 0, y: 0}
 --- !u!1 &159763963
 GameObject:
   m_ObjectHideFlags: 0
@@ -439,8 +487,9 @@ Transform:
   - {fileID: 1582261784}
   - {fileID: 1278334533}
   - {fileID: 1734157209}
-  - {fileID: 24113231}
   - {fileID: 1560247919}
+  - {fileID: 99915198}
+  - {fileID: 24113231}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1226810257
@@ -624,6 +673,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a79c87703e90c64786a89e4aedf987d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TileSelector
+  unitSpawner: {fileID: 99915199}
   mainCamera: {fileID: 1226810259}
   tileLayerMask:
     serializedVersion: 2
