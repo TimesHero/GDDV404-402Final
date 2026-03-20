@@ -3,13 +3,19 @@ using UnityEngine.InputSystem;
 
 public class TileSelector : MonoBehaviour
 {
+    [Header("References")]
     [SerializeField] private Camera mainCamera;
     [SerializeField] private LayerMask tileLayerMask;
+    
+    [Header("Hover Colors")]
+    [SerializeField] public Color hoverColor = Color.darkMagenta;
+    
     
     private InputSystem_Actions inputActions;
     
     private Vector2 pointerPosition;
     private GridTile currentHoveredTile;
+    private GridTile previousHoveredTile;
     
     private void Awake()
     {
@@ -57,13 +63,23 @@ public class TileSelector : MonoBehaviour
             GridTile tile = hit.collider.GetComponent<GridTile>();
             if (tile != currentHoveredTile)
             {
+                if (previousHoveredTile != null)
+                    previousHoveredTile.ResetHighlight();
+                previousHoveredTile = tile;
                 currentHoveredTile = tile;
+                
+                currentHoveredTile.SetHighlight(hoverColor);
                 Debug.Log($"Hovering tile: {tile.X}, {tile.Y}");;
             }
         }
         else
         {
-            currentHoveredTile = null;
+            if (previousHoveredTile != null)
+            {
+                currentHoveredTile.ResetHighlight();
+                currentHoveredTile = null;
+                previousHoveredTile = null;
+            }
         }
     }
 }

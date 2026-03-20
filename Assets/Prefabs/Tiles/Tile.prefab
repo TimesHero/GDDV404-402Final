@@ -104,13 +104,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a11db6db0ce0ff645bf8efbb3d955e2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTile
-  x: 0
-  y: 0
+  X: 0
+  Y: 0
   isWalkable: 1
   movementCost: 1
   terrainType: 0
   isOccupied: 0
   occupyingUnit: {fileID: 0}
+  tileRenderer: {fileID: 7421279272707735975}
 --- !u!65 &2994027228914629769
 BoxCollider:
   m_ObjectHideFlags: 0
