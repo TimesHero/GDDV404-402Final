@@ -44,7 +44,7 @@ public class GridTile : MonoBehaviour
         X = x;
         Y = y;
         gameObject.name = $"Tile_{x}_{y}";
-        RefreshTerrainDefaults();
+        ApplyTerrainSettings();
     }
     
     public void SetOccupant(GameObject unit)
@@ -58,6 +58,7 @@ public class GridTile : MonoBehaviour
         if (tileRenderer == null || tileRenderer.sharedMaterial == null) 
             return;
         Material material = tileRenderer.sharedMaterial;
+        
         if (material.HasProperty("_BaseColor"))
         {
             colorPropertyId = Shader.PropertyToID("_BaseColor");
@@ -83,36 +84,55 @@ public class GridTile : MonoBehaviour
     }
     public void ResetHighlight()
     {
-        RefreshTerrainDefaults();
+        ApplyTerrainSettings();
     }
-    private void RefreshTerrainDefaults()
+
+    public void ApplyTerrainSettings()
     {
         switch (terrainType)
         {
             case TerrainType.Ground:
                 movementCost = 1;
                 isWalkable = true;
-                SetHighlight( Color.white );
                 break;
             case TerrainType.Forest:
                 movementCost = 1;
                 isWalkable = true;
-                SetHighlight( Color.green );
                 break;
             case TerrainType.Water:
                 movementCost = 3;
                 isWalkable = true;
-                SetHighlight( Color.cyan );
                 break;
             case TerrainType.Hazard:
                 movementCost = 5;
                 isWalkable = false;
-                SetHighlight( Color.yellow );
                 break;
             case TerrainType.Blocked:
                 movementCost = 999;
                 isWalkable = false;
-                SetHighlight( Color.red );
+                break;
+        }
+
+        ApplyTerrainVisualOnly();
+    }
+    private void ApplyTerrainVisualOnly()
+    {
+        switch (terrainType)
+        {
+            case TerrainType.Ground:
+                SetHighlight(Color.white);
+                break;
+            case TerrainType.Forest:
+                SetHighlight(Color.green);
+                break;
+            case TerrainType.Water:
+                SetHighlight(Color.cyan);
+                break;
+            case TerrainType.Hazard:
+                SetHighlight(Color.yellow);
+                break;
+            case TerrainType.Blocked:
+                SetHighlight(Color.red);
                 break;
         }
     }

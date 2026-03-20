@@ -79,11 +79,26 @@ public class GridManager : MonoBehaviour
                 continue;
             
             GridTile neighborTile = GetTileAt(neighborPos);
+            
             if (neighborTile == null)
                 continue;
-            if(!neighborTile.isWalkable)
-                continue;
+            
             neighbors.Add(neighborTile);
+        }
+        return neighbors;
+    }
+
+    public List<GridTile> GetWalkableNeighbors(GridTile tile)
+    {
+        List<GridTile> neighbors = new List<GridTile>();
+        
+        foreach (GridTile neighbor in GetNeighbors(tile))
+        {
+            if (!neighbor.isWalkable)
+                continue;
+            if (neighbor.isOccupied)
+                continue;
+            neighbors.Add(neighbor);
         }
         return neighbors;
     }
