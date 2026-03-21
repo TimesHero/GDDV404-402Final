@@ -16,20 +16,34 @@ public class GridTile : MonoBehaviour
     public int Y;
     
     [Header("Tile Data")]
-    public bool isWalkable = true;
-    public int movementCost = 1;
+    //public bool isWalkable = true;
+    //public int movementCost = 1;
     public TerrainType terrainType = TerrainType.Ground;
 
+    public bool isWalkable { get; private set; } = true;
+    public int movementCost { get; private set; } = 1;
+    
     [Header("Occupancy")] 
     public bool isOccupied;
     public GameObject occupyingUnit;
     
     [Header("Visuals")]
     [SerializeField] private Renderer tileRenderer;
+    
+    [Header("References")]
+    [SerializeField] private TileManager tileManager;
+
     private MaterialPropertyBlock propertyBlock;
     private int colorPropertyId = -1;
+
     
     public Vector2Int GridPosition => new Vector2Int(X, Y);
+    
+    public TerrainType TerrainType
+    {
+        get => terrainType;
+        set => terrainType = value;
+    }
 
     private void Awake()
     {
@@ -39,10 +53,11 @@ public class GridTile : MonoBehaviour
 
         CacheColorProperty();
     }
-    public void Initialize(int x, int y)
+    public void Initialize(int x, int y, TileManager manager)
     {
         X = x;
         Y = y;
+        tileManager = manager;
         gameObject.name = $"Tile_{x}_{y}";
         ApplyTerrainSettings();
     }
@@ -89,52 +104,36 @@ public class GridTile : MonoBehaviour
 
     public void ApplyTerrainSettings()
     {
-        switch (terrainType)
+        if (tileManager == null)
         {
-            case TerrainType.Ground:
-                movementCost = 1;
-                isWalkable = true;
-                break;
-            case TerrainType.Forest:
-                movementCost = 1;
-                isWalkable = true;
-                break;
-            case TerrainType.Water:
-                movementCost = 3;
-                isWalkable = true;
-                break;
-            case TerrainType.Hazard:
-                movementCost = 5;
-                isWalkable = false;
-                break;
-            case TerrainType.Blocked:
-                movementCost = 999;
-                isWalkable = false;
-                break;
+            Debug.LogWarning($"{name}: TileManager reference is missing.");
+            return;
         }
 
+        TerrainTypeData data = tileManager.GetTerrainData(terrainType);
+
+        if (data == null)
+        {
+            Debug.LogWarning($"{name}: No TerrainTypeData found for {terrainType}");
+            return;
+        }
+
+        movementCost = data.MovementCost;
+        isWalkable = data.IsWalkable;
+        
         ApplyTerrainVisualOnly();
     }
     private void ApplyTerrainVisualOnly()
     {
-        switch (terrainType)
-        {
-            case TerrainType.Ground:
-                SetHighlight(Color.white);
-                break;
-            case TerrainType.Forest:
-                SetHighlight(Color.green);
-                break;
-            case TerrainType.Water:
-                SetHighlight(Color.cyan);
-                break;
-            case TerrainType.Hazard:
-                SetHighlight(Color.yellow);
-                break;
-            case TerrainType.Blocked:
-                SetHighlight(Color.red);
-                break;
-        }
+        if (tileManager == null)
+            return;
+
+        TerrainTypeData data = tileManager.GetTerrainData(terrainType);
+
+        if (data == null)
+            return;
+
+        SetHighlight(data.TileColor);
     }
     public void ShowAsPath()
     {
@@ -147,5 +146,14 @@ public class GridTile : MonoBehaviour
     public void ShowAsTarget()
     {
         SetHighlight(Color.darkRed);
+    }
+    public void ShowAsReachable()
+    {
+        SetHighlight(new Color(0f, 1f, 1f, 0.6f));
+    }
+
+    public void ShowAsBlockedMove()
+    {
+        SetHighlight(Color.black);
     }
 }

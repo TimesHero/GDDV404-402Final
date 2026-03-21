@@ -9,6 +9,11 @@ public class GridUnit : MonoBehaviour
     [SerializeField] private float rotationSpeed = 10f;
     [SerializeField] private float groundOffset = 0.02f;
     
+    [Header("Movement Points")]
+    [SerializeField] private int maxMovementPoints = 5;
+
+    public int MaxMovementPoints => maxMovementPoints;
+    
     [Header("Visual Root")]
     [SerializeField] private Transform visualRoot;
 
@@ -50,7 +55,7 @@ public class GridUnit : MonoBehaviour
 
         if (isMoving)
             return;
-
+        List<GridTile> pathCopy = new List<GridTile>(path);
         StartCoroutine(MoveRoutine(path));
     }
 

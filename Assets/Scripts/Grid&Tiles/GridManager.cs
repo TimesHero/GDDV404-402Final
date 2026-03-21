@@ -11,6 +11,7 @@ public class GridManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private GridTile tilePrefab;
     [SerializeField] private Transform tileParent;
+    [SerializeField] private TileManager tileManager;
     
     private GridTile[,] grid;
     
@@ -33,7 +34,7 @@ public class GridManager : MonoBehaviour
             {
                 Vector3 worldPosition = new Vector3(x * tileSpacing, 0f, y * tileSpacing);
                 GridTile tile = Instantiate(tilePrefab, worldPosition, Quaternion.identity, tileParent);
-                tile.Initialize(x, y);
+                tile.Initialize(x, y, tileManager);
                 grid[x, y] = tile;
             }
         }
