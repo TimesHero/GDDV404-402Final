@@ -167,7 +167,8 @@ MonoBehaviour:
   tileLayerMask:
     serializedVersion: 2
     m_Bits: 8
-  selectedTerrain: 3
+  terrainTypes: []
+  selectedIndex: 0
 --- !u!1 &99915197
 GameObject:
   m_ObjectHideFlags: 0
@@ -707,6 +708,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a79c87703e90c64786a89e4aedf987d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TileSelector
+  reachableColor: {r: 0, g: 1, b: 1, a: 0.35}
+  previewPathColor: {r: 0, g: 0.5, b: 1, a: 0.45}
+  finalPathColor: {r: 0, g: 0, b: 1, a: 0.55}
+  startColor: {r: 0, g: 1, b: 0, a: 0.45}
+  targetColor: {r: 1, g: 0, b: 0, a: 0.45}
   unitSpawner: {fileID: 99915199}
   mainCamera: {fileID: 1226810259}
   tileLayerMask:
@@ -714,7 +720,7 @@ MonoBehaviour:
     m_Bits: 8
   pathFinder: {fileID: 1560247920}
   rangeFinder: {fileID: 1282916741}
-  hoverColor: {r: 0.5450981, g: 0, b: 0.5450981, a: 1}
+  hoverColor: {r: 0.5450981, g: 0, b: 0.5450981, a: 0.67058825}
 --- !u!1 &1282916740
 GameObject:
   m_ObjectHideFlags: 0

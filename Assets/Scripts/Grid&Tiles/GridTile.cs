@@ -39,6 +39,17 @@ public class GridTile : MonoBehaviour
     private int baseColorPropertyId = -1;
     private int overlayColorPropertyId = -1;
     
+    public TerrainTypeData CurrentTerrainData
+    {
+        get
+        {
+            if (tileManager == null)
+                return null;
+
+            return tileManager.GetTerrainData(terrainType);
+        }
+    }
+    
     public Vector2Int GridPosition => new Vector2Int(X, Y);
     
     public TerrainType TerrainType
@@ -169,28 +180,27 @@ public class GridTile : MonoBehaviour
         highlightOverlayRenderer.gameObject.SetActive(false);
     }
     
-    public void ShowAsPath()
+    public void ShowOverlayColor(Color color)
     {
-        ShowOverlay(new Color(0f, 0f, 1f, 0.55f));
+        ShowOverlay(color);
     }
-    public void ShowAsStart()
-    {
-        ShowOverlay(new Color(0f, 1f, 0f, 0.45f));
-    }
-    public void ShowAsTarget()
-    {
-        ShowOverlay(new Color(1f, 0f, 0f, 0.45f));
-    }
-    public void ShowAsReachable()
-    {
-        ShowOverlay(new Color(0f, 1f, 1f, 0.35f));
-    }
-    public void ShowAsPreview()
-    {
-        ShowOverlay(new Color(0f, 0.5f, 1f, 0.45f));
-    }
+    
     public void SetHoverHighlight(Color color)
     {
         ShowOverlay(color);
+    }
+    public int GetTraversalCost(bool isFinalDestination)
+    {
+        TerrainTypeData data = CurrentTerrainData;
+
+        if (data == null)
+            return movementCost;
+
+        int cost = data.MovementCost;
+
+        if (!isFinalDestination)
+            cost += data.MovementPenaltyOnEntry;
+
+        return cost;
     }
 }

@@ -43,4 +43,17 @@ public class TileManager : MonoBehaviour
         Debug.LogWarning($"No TerrainTypeData found for {terrainType}");
         return null;
     }
+    
+    public List<TerrainTypeData> GetAllTerrainTypes()
+    {
+        return terrainTypes;
+    }
+    
+    public bool HasTerrainData(TerrainType terrainType)
+    {
+        if (terrainLookup == null)
+            BuildLookup();
+
+        return terrainLookup.ContainsKey(terrainType);
+    }
 }

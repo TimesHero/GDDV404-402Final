@@ -8,6 +8,10 @@ public class TerrainTypeData : ScriptableObject
 
     [Header("Gameplay")]
     [SerializeField] private int movementCost = 1;
+    [SerializeField] private int damageOnEnter = 0;
+    [SerializeField] private int movementPenaltyOnStop = 0;
+    [SerializeField] private int damageOnStop = 0;
+    [SerializeField] private int movementPenaltyOnEntry = 0;
     [SerializeField] private bool isWalkable = true;
 
     [Header("Visual")]
@@ -15,6 +19,10 @@ public class TerrainTypeData : ScriptableObject
 
     public TerrainType TerrainType => terrainType;
     public int MovementCost => movementCost;
+    public int DamageOnEnter => damageOnEnter;
+    public int MovementPenaltyOnStop => movementPenaltyOnStop;
+    public int DamageOnStop => damageOnStop;
+    public int MovementPenaltyOnEntry => movementPenaltyOnEntry;
     public bool IsWalkable => isWalkable;
     public Color TileColor => tileColor;
 }

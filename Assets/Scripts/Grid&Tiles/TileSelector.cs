@@ -4,6 +4,13 @@ using System.Collections.Generic;
 
 public class TileSelector : MonoBehaviour
 {
+    [Header("Highlight Colors")]
+    [SerializeField] private Color reachableColor = new Color(0f, 1f, 1f, 0.35f);
+    [SerializeField] private Color previewPathColor = new Color(0f, 0.5f, 1f, 0.45f);
+    [SerializeField] private Color finalPathColor = new Color(0f, 0f, 1f, 0.55f);
+    [SerializeField] private Color startColor = new Color(0f, 1f, 0f, 0.45f);
+    [SerializeField] private Color targetColor = new Color(1f, 0f, 0f, 0.45f);
+    
     [Header("References")]
     [SerializeField] private UnitSpawner unitSpawner;
     [SerializeField] private Camera mainCamera;
@@ -59,6 +66,19 @@ public class TileSelector : MonoBehaviour
     {
         pointerPosition = context.ReadValue<Vector2>();
     }
+    private void RestoreSelectionVisuals()
+    {
+        ClearPreviewPath();
+        ClearPathPreview();
+        selectedTargetTile = null;
+
+        if (selectedUnit != null && selectedUnit.CurrentTile != null)
+        {
+            selectedStartTile = selectedUnit.CurrentTile;
+            selectedStartTile.ShowOverlayColor(startColor);
+            ShowMovementRange(selectedUnit);
+        }
+    }
     
     private void OnClick(InputAction.CallbackContext context)
     {
@@ -109,6 +129,7 @@ public class TileSelector : MonoBehaviour
         if (!IsTileReachable(selectedTargetTile))
         {
             Debug.Log("Tile is outside movement range.");
+            RestoreSelectionVisuals();
             return;
         }
 
@@ -117,6 +138,7 @@ public class TileSelector : MonoBehaviour
         if (path == null)
         {
             Debug.Log("No path found.");
+            RestoreSelectionVisuals();
             return;
         }
 
@@ -124,15 +146,15 @@ public class TileSelector : MonoBehaviour
 
         currentPath = new List<GridTile>(path);
 
-        selectedStartTile.ShowAsStart();
-        selectedTargetTile.ShowAsTarget();
+        selectedStartTile.ShowOverlayColor(startColor);
+        selectedTargetTile.ShowOverlayColor(targetColor);
 
         foreach (GridTile tile in currentPath)
         {
             if (tile == selectedStartTile || tile == selectedTargetTile)
                 continue;
 
-            tile.ShowAsPath();
+            tile.ShowOverlayColor(finalPathColor);
         }
 
         selectedUnit.MoveAlongPath(new List<GridTile>(path));
@@ -153,7 +175,7 @@ public class TileSelector : MonoBehaviour
         selectedStartTile = unit.CurrentTile;
 
         if (selectedStartTile != null)
-            selectedStartTile.ShowAsStart();
+            selectedStartTile.ShowOverlayColor(startColor);
 
         ShowMovementRange(unit);
 
@@ -263,7 +285,7 @@ public class TileSelector : MonoBehaviour
             if (tile == unit.CurrentTile)
                 continue;
 
-            tile.ShowAsReachable();
+            tile.ShowOverlayColor(reachableColor);
         }
     }
     
@@ -307,15 +329,15 @@ public class TileSelector : MonoBehaviour
         previewPath = new List<GridTile>(path);
         lastPreviewTarget = target;
         
-        start.ShowAsStart();
-        target.ShowAsTarget();
+        start.ShowOverlayColor(startColor);
+        target.ShowOverlayColor(targetColor);
 
         foreach (GridTile tile in previewPath)
         {
             if (tile == start || tile == target)
                 continue;
 
-            tile.ShowAsPreview();
+            tile.ShowOverlayColor(previewPathColor);
         }
     }
 
@@ -340,37 +362,37 @@ public class TileSelector : MonoBehaviour
         
         if (selectedUnit != null && tile == selectedUnit.CurrentTile)
         {
-            tile.ShowAsStart();
+            tile.ShowOverlayColor(startColor);
             return;
         }
 
         if (tile == selectedStartTile)
         {
-            tile.ShowAsStart();
+            tile.ShowOverlayColor(startColor);
             return;
         }
 
         if (tile == selectedTargetTile)
         {
-            tile.ShowAsTarget();
+            tile.ShowOverlayColor(targetColor);
             return;
         }
 
         if (currentPath.Contains(tile))
         {
-            tile.ShowAsPath();
+            tile.ShowOverlayColor(finalPathColor);
             return;
         }
 
         if (previewPath.Contains(tile))
         {
-            tile.ShowAsPreview();
+            tile.ShowOverlayColor(previewPathColor);
             return;
         }
 
         if (reachableTiles.ContainsKey(tile))
         {
-            tile.ShowAsReachable();
+            tile.ShowOverlayColor(reachableColor);
             return;
         }
 
