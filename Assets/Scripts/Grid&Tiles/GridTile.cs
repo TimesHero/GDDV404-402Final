@@ -41,6 +41,8 @@ public class GridTile : MonoBehaviour
     private int baseColorPropertyId = -1;
     private int overlayColorPropertyId = -1;
     
+    private Material originalBaseMaterial;
+    
     public TerrainTypeData CurrentTerrainData
     {
         get
@@ -67,6 +69,9 @@ public class GridTile : MonoBehaviour
 
         if (tileRenderer == null)
             tileRenderer = GetComponentInChildren<Renderer>();
+        
+        if (tileRenderer != null)
+            originalBaseMaterial = tileRenderer.sharedMaterial;
 
         CacheColorProperties();
         HideOverlay();
@@ -156,6 +161,11 @@ public class GridTile : MonoBehaviour
         TerrainTypeData data = tileManager.GetTerrainData(terrainType);
         if (data == null)
             return;
+
+        if (data.TileMaterialOverride != null)
+            tileRenderer.sharedMaterial = data.TileMaterialOverride;
+        else if (originalBaseMaterial != null)
+            tileRenderer.sharedMaterial = originalBaseMaterial;
 
         tileRenderer.GetPropertyBlock(baseBlock);
         baseBlock.SetColor(baseColorPropertyId, data.TileColor);

@@ -16,8 +16,7 @@ public class ObstacleManager : MonoBehaviour
 
         if (!CanPlaceObstacle(obstacleData, origin))
             return false;
-
-        // Marca tiles bloqueados
+        
         for (int x = 0; x < obstacleData.FootprintSize.x; x++)
         {
             for (int y = 0; y < obstacleData.FootprintSize.y; y++)
@@ -28,12 +27,17 @@ public class ObstacleManager : MonoBehaviour
                 if (tile == null)
                     continue;
 
+                if (obstacleData.PaintTerrainUnderObstacle)
+                {
+                    tile.TerrainType = obstacleData.TerrainTypeUnderObstacle;
+                    tile.ApplyTerrainSettings();
+                }
+
                 if (obstacleData.BlocksMovement)
                     tile.ForceSetWalkable(false);
             }
         }
-
-        // Instancia un solo prefab visual
+        
         if (obstacleData.ObstaclePrefab != null)
         {
             Vector3 spawnPosition = GetObstacleCenterWorldPosition(obstacleData, origin) + obstacleData.VisualOffset;

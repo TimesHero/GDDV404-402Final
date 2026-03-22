@@ -169,6 +169,10 @@ MonoBehaviour:
     m_Bits: 8
   terrainTypes: []
   selectedIndex: 0
+  showDebugUI: 1
+  fontSize: 22
+  uiPosition: {x: 20, y: 20}
+  uiSize: {x: 460, y: 120}
 --- !u!1 &64387293
 GameObject:
   m_ObjectHideFlags: 0
@@ -641,6 +645,8 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 24113231}
+  - {fileID: 1907593703}
+  - {fileID: 867189001}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &414890574
@@ -852,8 +858,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ObstacleManager
   gridManager: {fileID: 414890576}
   obstacleParent: {fileID: 97074188}
-  testObstacle: {fileID: 11400000, guid: 881089dec3bdcf94ba0a713c86714182, type: 2}
-  testOrigin: {x: 5, y: 5}
+--- !u!1 &867189000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 867189001}
+  - component: {fileID: 867189002}
+  m_Layer: 0
+  m_Name: DebugModeSwitcher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &867189001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 867189000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 342231125}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &867189002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 867189000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21ed34e34a3444a458f4caa4d0d9777d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DebugModeSwitcher
+  gridDebugPainter: {fileID: 24113232}
+  obstacleDebugPainter: {fileID: 1907593704}
+  showDebugModeUI: 1
+  fontSize: 24
+  uiPosition: {x: 20, y: 300}
+  uiSize: {x: 420, y: 70}
+  currentMode: 0
 --- !u!1 &888403593
 GameObject:
   m_ObjectHideFlags: 0
@@ -1463,6 +1518,61 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 108b3a9fe3b5a674ca8b2faa92050f07, type: 2}
   - {fileID: 11400000, guid: 8f06ba137f9bc3540ba0a64cc91ab1b5, type: 2}
   - {fileID: 11400000, guid: ca1615e90552e734fac6f2d0dd6432ea, type: 2}
+--- !u!1 &1907593702
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1907593703}
+  - component: {fileID: 1907593704}
+  m_Layer: 0
+  m_Name: ObstacleDebugPainter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1907593703
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1907593702}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 342231125}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1907593704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1907593702}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e92a591478e03f4d81f3b77d89de98d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ObstacleDebugPainter
+  mainCamera: {fileID: 1226810259}
+  tileLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
+  obstacleManager: {fileID: 831409318}
+  obstacleTypes: []
+  selectedIndex: 0
+  showDebugUI: 1
+  fontSize: 22
+  uiPosition: {x: 20, y: 20}
+  uiSize: {x: 460, y: 120}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

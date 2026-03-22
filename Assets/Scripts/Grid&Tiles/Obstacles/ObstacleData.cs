@@ -20,6 +20,10 @@ public class ObstacleData : ScriptableObject
     [Header("Footprint")]
     [SerializeField] private Vector2Int footprintSize = Vector2Int.one;
     
+    [Header("Surface Affect")]
+    [SerializeField] private bool paintTerrainUnderObstacle = false;
+    [SerializeField] private TerrainType terrainTypeUnderObstacle = TerrainType.Blocked;
+    
  
 
     public string ObstacleId => obstacleId;
@@ -30,4 +34,7 @@ public class ObstacleData : ScriptableObject
     
     public Vector3 VisualRotationEuler => visualRotationEuler;
     public Vector3 VisualScale => visualScale;
+    
+    public bool PaintTerrainUnderObstacle => paintTerrainUnderObstacle;
+    public TerrainType TerrainTypeUnderObstacle => terrainTypeUnderObstacle;
 }
