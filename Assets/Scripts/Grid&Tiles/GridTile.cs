@@ -29,13 +29,15 @@ public class GridTile : MonoBehaviour
     
     [Header("Visuals")]
     [SerializeField] private Renderer tileRenderer;
+    [SerializeField] private Renderer highlightOverlayRenderer;
     
     [Header("References")]
     [SerializeField] private TileManager tileManager;
 
-    private MaterialPropertyBlock propertyBlock;
-    private int colorPropertyId = -1;
-
+    private MaterialPropertyBlock baseBlock;
+    private MaterialPropertyBlock overlayBlock;
+    private int baseColorPropertyId = -1;
+    private int overlayColorPropertyId = -1;
     
     public Vector2Int GridPosition => new Vector2Int(X, Y);
     
@@ -47,11 +49,14 @@ public class GridTile : MonoBehaviour
 
     private void Awake()
     {
-        propertyBlock = new MaterialPropertyBlock();
+        baseBlock = new MaterialPropertyBlock();
+        overlayBlock = new MaterialPropertyBlock();
+
         if (tileRenderer == null)
             tileRenderer = GetComponentInChildren<Renderer>();
 
-        CacheColorProperty();
+        CacheColorProperties();
+        HideOverlay();
     }
     public void Initialize(int x, int y, TileManager manager)
     {
@@ -60,6 +65,7 @@ public class GridTile : MonoBehaviour
         tileManager = manager;
         gameObject.name = $"Tile_{x}_{y}";
         ApplyTerrainSettings();
+        HideOverlay();
     }
     
     public void SetOccupant(GameObject unit)
@@ -68,38 +74,43 @@ public class GridTile : MonoBehaviour
         isOccupied = unit != null;
     }
     
-    private void CacheColorProperty()
+    private void CacheColorProperties()
     {
         if (tileRenderer == null || tileRenderer.sharedMaterial == null) 
             return;
-        Material material = tileRenderer.sharedMaterial;
-        
-        if (material.HasProperty("_BaseColor"))
+        if (tileRenderer != null && tileRenderer.sharedMaterial != null)
         {
-            colorPropertyId = Shader.PropertyToID("_BaseColor");
+            Material material = tileRenderer.sharedMaterial;
+
+            if (material.HasProperty("_BaseColor"))
+                baseColorPropertyId = Shader.PropertyToID("_BaseColor");
+            else if (material.HasProperty("_Color"))
+                baseColorPropertyId = Shader.PropertyToID("_Color");
         }
-        else if (material.HasProperty("_Color"))
+
+        if (highlightOverlayRenderer != null && highlightOverlayRenderer.sharedMaterial != null)
         {
-            colorPropertyId = Shader.PropertyToID("_Color");
-        }
-        else
-        {
-            Debug.LogWarning($"{name} material does not expose _BaseColor or _Color.");
+            Material material = highlightOverlayRenderer.sharedMaterial;
+
+            if (material.HasProperty("_BaseColor"))
+                overlayColorPropertyId = Shader.PropertyToID("_BaseColor");
+            else if (material.HasProperty("_Color"))
+                overlayColorPropertyId = Shader.PropertyToID("_Color");
         }
     }
 
     public void SetHighlight(Color color)
     {
-        if (tileRenderer == null || colorPropertyId == -1) 
+        if (tileRenderer == null || baseColorPropertyId == -1) 
             return;
         
-        tileRenderer.GetPropertyBlock(propertyBlock);
-        propertyBlock.SetColor(colorPropertyId, color);
-        tileRenderer.SetPropertyBlock(propertyBlock);
+        tileRenderer.GetPropertyBlock(baseBlock);
+        baseBlock.SetColor(baseColorPropertyId, color);
+        tileRenderer.SetPropertyBlock(baseBlock);
     }
     public void ResetHighlight()
     {
-        ApplyTerrainSettings();
+        HideOverlay();
     }
 
     public void ApplyTerrainSettings()
@@ -125,35 +136,61 @@ public class GridTile : MonoBehaviour
     }
     private void ApplyTerrainVisualOnly()
     {
-        if (tileManager == null)
+        if (tileManager == null || tileRenderer == null || baseColorPropertyId == -1)
             return;
 
         TerrainTypeData data = tileManager.GetTerrainData(terrainType);
-
         if (data == null)
             return;
 
-        SetHighlight(data.TileColor);
+        tileRenderer.GetPropertyBlock(baseBlock);
+        baseBlock.SetColor(baseColorPropertyId, data.TileColor);
+        tileRenderer.SetPropertyBlock(baseBlock);
     }
+    private void ShowOverlay(Color color)
+    {
+        if (highlightOverlayRenderer == null || overlayColorPropertyId == -1)
+            return;
+
+        highlightOverlayRenderer.gameObject.SetActive(true);
+
+        highlightOverlayRenderer.GetPropertyBlock(overlayBlock);
+        overlayBlock.SetColor(overlayColorPropertyId, color);
+        highlightOverlayRenderer.SetPropertyBlock(overlayBlock);
+    }
+
+    public void HideOverlay()
+    {
+        if (highlightOverlayRenderer == null)
+            return;
+        
+        highlightOverlayRenderer.SetPropertyBlock(null);
+        
+        highlightOverlayRenderer.gameObject.SetActive(false);
+    }
+    
     public void ShowAsPath()
     {
-        SetHighlight(Color.darkBlue);
+        ShowOverlay(new Color(0f, 0f, 1f, 0.55f));
     }
     public void ShowAsStart()
     {
-        SetHighlight(Color.darkGreen);
+        ShowOverlay(new Color(0f, 1f, 0f, 0.45f));
     }
     public void ShowAsTarget()
     {
-        SetHighlight(Color.darkRed);
+        ShowOverlay(new Color(1f, 0f, 0f, 0.45f));
     }
     public void ShowAsReachable()
     {
-        SetHighlight(new Color(0f, 1f, 1f, 0.6f));
+        ShowOverlay(new Color(0f, 1f, 1f, 0.35f));
     }
-
-    public void ShowAsBlockedMove()
+    public void ShowAsPreview()
     {
-        SetHighlight(Color.black);
+        ShowOverlay(new Color(0f, 0.5f, 1f, 0.45f));
+    }
+    public void SetHoverHighlight(Color color)
+    {
+        ShowOverlay(color);
     }
 }

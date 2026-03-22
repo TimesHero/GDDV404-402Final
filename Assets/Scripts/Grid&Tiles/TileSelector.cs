@@ -29,6 +29,9 @@ public class TileSelector : MonoBehaviour
     private List<GridTile> currentPath = new List<GridTile>();
     private Dictionary<GridTile, int> reachableTiles = new Dictionary<GridTile, int>();
     
+    private List<GridTile> previewPath = new List<GridTile>();
+    private GridTile lastPreviewTarget;
+    
     private void Awake()
     {
         inputActions = new InputSystem_Actions();
@@ -143,6 +146,7 @@ public class TileSelector : MonoBehaviour
             return;
 
         ClearPathPreview();
+        ClearPreviewPath();
         ClearReachableTiles();
 
         selectedUnit = unit;
@@ -158,13 +162,14 @@ public class TileSelector : MonoBehaviour
 
     private void DeselectUnit()
     {
-        ClearPathPreview();
-        ClearReachableTiles();
-
         selectedUnit = null;
         selectedStartTile = null;
         selectedTargetTile = null;
-
+        
+        ClearPreviewPath();
+        ClearPathPreview();
+        ClearReachableTiles();
+        
         Debug.Log("Unit deselected.");
     }
 
@@ -175,41 +180,46 @@ public class TileSelector : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, 100f, tileLayerMask))
         {
             GridTile tile = hit.collider.GetComponent<GridTile>();
+
             if (tile != currentHoveredTile)
             {
-                if (previousHoveredTile != null && !IsTileInPersistentState(previousHoveredTile))
-                    previousHoveredTile.ResetHighlight();
-                
-                previousHoveredTile = tile;
+                if (currentHoveredTile != null)
+                    RestoreTileVisualState(currentHoveredTile);
+
+                previousHoveredTile = currentHoveredTile;
                 currentHoveredTile = tile;
                 
+                if (selectedUnit != null)
+                {
+                    if (IsTileReachable(currentHoveredTile))
+                        ShowPreviewPath(selectedUnit.CurrentTile, currentHoveredTile);
+                    else
+                        ClearPreviewPath();
+                }
+                
                 if (!IsTileInPersistentState(currentHoveredTile))
-                    currentHoveredTile.SetHighlight(hoverColor);
-                //Debug.Log($"Hovering tile: {tile.X}, {tile.Y}");;
+                    currentHoveredTile.SetHoverHighlight(hoverColor);
             }
         }
         else
         {
-            if (currentHoveredTile != null && !IsTileInPersistentState(currentHoveredTile))
-                currentHoveredTile.ResetHighlight();
+            if (currentHoveredTile != null)
+                RestoreTileVisualState(currentHoveredTile);
             
             currentHoveredTile = null;
             previousHoveredTile = null;
+            
+            ClearPreviewPath();
         }
     }
     private void ClearPathPreview()
     {
         foreach (GridTile tile in currentPath)
         {
-            if(tile != null)
-                tile.ResetHighlight();
+            if (tile != null)
+                RestoreTileVisualState(tile);
         }
-        
-        if (selectedStartTile != null)
-            selectedStartTile.ResetHighlight();
-        if (selectedTargetTile != null)
-            selectedTargetTile.ResetHighlight();
-        
+
         currentPath.Clear();
     }
 
@@ -224,6 +234,8 @@ public class TileSelector : MonoBehaviour
         if (tile == selectedTargetTile)
             return true;
         if (reachableTiles.ContainsKey(tile))
+            return true;
+        if (previewPath.Contains(tile))
             return true;
         
         return currentPath.Contains(tile);
@@ -272,5 +284,96 @@ public class TileSelector : MonoBehaviour
             return false;
 
         return reachableTiles.ContainsKey(tile);
+    }
+    
+    private void ShowPreviewPath(GridTile start, GridTile target)
+    {
+        if (pathFinder == null)
+            return;
+
+        if (target == null || start == null)
+            return;
+        
+        if (lastPreviewTarget == target)
+            return;
+
+        ClearPreviewPath();
+
+        List<GridTile> path = pathFinder.FindPath(start, target);
+
+        if (path == null)
+            return;
+
+        previewPath = new List<GridTile>(path);
+        lastPreviewTarget = target;
+        
+        start.ShowAsStart();
+        target.ShowAsTarget();
+
+        foreach (GridTile tile in previewPath)
+        {
+            if (tile == start || tile == target)
+                continue;
+
+            tile.ShowAsPreview();
+        }
+    }
+
+    private void ClearPreviewPath()
+    {
+        List<GridTile> oldPreviewTiles = new List<GridTile>(previewPath);
+        
+        previewPath.Clear();
+        lastPreviewTarget = null;
+        
+        foreach (GridTile tile in oldPreviewTiles)
+        {
+            if (tile != null)
+                RestoreTileVisualState(tile);
+        }    
+    }
+    
+    private void RestoreTileVisualState(GridTile tile)
+    {
+        if (tile == null)
+            return;
+        
+        if (selectedUnit != null && tile == selectedUnit.CurrentTile)
+        {
+            tile.ShowAsStart();
+            return;
+        }
+
+        if (tile == selectedStartTile)
+        {
+            tile.ShowAsStart();
+            return;
+        }
+
+        if (tile == selectedTargetTile)
+        {
+            tile.ShowAsTarget();
+            return;
+        }
+
+        if (currentPath.Contains(tile))
+        {
+            tile.ShowAsPath();
+            return;
+        }
+
+        if (previewPath.Contains(tile))
+        {
+            tile.ShowAsPreview();
+            return;
+        }
+
+        if (reachableTiles.ContainsKey(tile))
+        {
+            tile.ShowAsReachable();
+            return;
+        }
+
+        tile.ResetHighlight();
     }
 }
