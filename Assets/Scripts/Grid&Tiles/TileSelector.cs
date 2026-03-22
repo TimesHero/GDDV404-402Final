@@ -82,7 +82,17 @@ public class TileSelector : MonoBehaviour
     
     private void OnClick(InputAction.CallbackContext context)
     {
-         if (currentHoveredTile == null)
+        ////////////////////TurnManager Check/////////////////////////
+        if (TurnManager.Instance == null)
+        {
+            Debug.LogError("TileSelector: TurnManager instance is missing.");
+            return;
+        }
+
+        if (!TurnManager.Instance.IsPlayerTurn() || TurnManager.Instance.IsBusy())
+            return;
+        /////////////////////////////////////////////////////////////
+        if (currentHoveredTile == null)
             return;
 
         if (pathFinder == null)

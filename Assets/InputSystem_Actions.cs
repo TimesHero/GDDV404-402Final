@@ -118,6 +118,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""End Turn"",
+                    ""type"": ""Button"",
+                    ""id"": ""eb1479a3-a6aa-4699-b306-026379e22b42"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -173,6 +182,17 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""PaintClick"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""872b31e3-d48a-42f4-b861-e058f0696845"",
+                    ""path"": ""<Keyboard>/space"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""End Turn"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1237,6 +1257,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Gameplay_PointerPosition = m_Gameplay.FindAction("PointerPosition", throwIfNotFound: true);
         m_Gameplay_Click = m_Gameplay.FindAction("Click", throwIfNotFound: true);
         m_Gameplay_PaintClick = m_Gameplay.FindAction("PaintClick", throwIfNotFound: true);
+        m_Gameplay_EndTurn = m_Gameplay.FindAction("End Turn", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1345,6 +1366,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_PointerPosition;
     private readonly InputAction m_Gameplay_Click;
     private readonly InputAction m_Gameplay_PaintClick;
+    private readonly InputAction m_Gameplay_EndTurn;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -1368,6 +1390,10 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/PaintClick".
         /// </summary>
         public InputAction @PaintClick => m_Wrapper.m_Gameplay_PaintClick;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/EndTurn".
+        /// </summary>
+        public InputAction @EndTurn => m_Wrapper.m_Gameplay_EndTurn;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1403,6 +1429,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @PaintClick.started += instance.OnPaintClick;
             @PaintClick.performed += instance.OnPaintClick;
             @PaintClick.canceled += instance.OnPaintClick;
+            @EndTurn.started += instance.OnEndTurn;
+            @EndTurn.performed += instance.OnEndTurn;
+            @EndTurn.canceled += instance.OnEndTurn;
         }
 
         /// <summary>
@@ -1423,6 +1452,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @PaintClick.started -= instance.OnPaintClick;
             @PaintClick.performed -= instance.OnPaintClick;
             @PaintClick.canceled -= instance.OnPaintClick;
+            @EndTurn.started -= instance.OnEndTurn;
+            @EndTurn.performed -= instance.OnEndTurn;
+            @EndTurn.canceled -= instance.OnEndTurn;
         }
 
         /// <summary>
@@ -1928,6 +1960,13 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnPaintClick(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "End Turn" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnEndTurn(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.
