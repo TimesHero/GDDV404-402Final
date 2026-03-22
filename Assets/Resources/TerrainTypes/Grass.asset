@@ -19,4 +19,8 @@ MonoBehaviour:
   damageOnStop: 0
   movementPenaltyOnEntry: 2
   isWalkable: 1
-  tileColor: {r: 0.09828751, g: 0.72895813, b: 0, a: 1}
+  tileColor: {r: 1, g: 1, b: 1, a: 1}
+  tileDecorationPrefab: {fileID: 0}
+  decorationOffset: {x: 0, y: 0, z: 0}
+  tileMaterialOverride: {fileID: 2100000, guid: 91e9758a5da7a934c9b91aec67dd4c2e, type: 2}
+  debugPreviewTexture: {fileID: 0}
