@@ -127,6 +127,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""EraseClick"",
+                    ""type"": ""Button"",
+                    ""id"": ""0b0feaf0-25b2-474d-ae5c-00dfd7d2a7b6"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -193,6 +202,17 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""End Turn"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""585f9c9f-eea4-4e8a-b214-97997e7f0ce7"",
+                    ""path"": ""<Mouse>/middleButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""EraseClick"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1258,6 +1278,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Gameplay_Click = m_Gameplay.FindAction("Click", throwIfNotFound: true);
         m_Gameplay_PaintClick = m_Gameplay.FindAction("PaintClick", throwIfNotFound: true);
         m_Gameplay_EndTurn = m_Gameplay.FindAction("End Turn", throwIfNotFound: true);
+        m_Gameplay_EraseClick = m_Gameplay.FindAction("EraseClick", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1367,6 +1388,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Gameplay_Click;
     private readonly InputAction m_Gameplay_PaintClick;
     private readonly InputAction m_Gameplay_EndTurn;
+    private readonly InputAction m_Gameplay_EraseClick;
     /// <summary>
     /// Provides access to input actions defined in input action map "Gameplay".
     /// </summary>
@@ -1394,6 +1416,10 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Gameplay/EndTurn".
         /// </summary>
         public InputAction @EndTurn => m_Wrapper.m_Gameplay_EndTurn;
+        /// <summary>
+        /// Provides access to the underlying input action "Gameplay/EraseClick".
+        /// </summary>
+        public InputAction @EraseClick => m_Wrapper.m_Gameplay_EraseClick;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1432,6 +1458,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @EndTurn.started += instance.OnEndTurn;
             @EndTurn.performed += instance.OnEndTurn;
             @EndTurn.canceled += instance.OnEndTurn;
+            @EraseClick.started += instance.OnEraseClick;
+            @EraseClick.performed += instance.OnEraseClick;
+            @EraseClick.canceled += instance.OnEraseClick;
         }
 
         /// <summary>
@@ -1455,6 +1484,9 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @EndTurn.started -= instance.OnEndTurn;
             @EndTurn.performed -= instance.OnEndTurn;
             @EndTurn.canceled -= instance.OnEndTurn;
+            @EraseClick.started -= instance.OnEraseClick;
+            @EraseClick.performed -= instance.OnEraseClick;
+            @EraseClick.canceled -= instance.OnEraseClick;
         }
 
         /// <summary>
@@ -1967,6 +1999,13 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnEndTurn(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "EraseClick" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnEraseClick(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

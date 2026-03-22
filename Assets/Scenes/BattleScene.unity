@@ -1512,12 +1512,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcf48059818cbad46afa7e87c201723b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TileManager
-  terrainTypes:
-  - {fileID: 11400000, guid: 188f480b8cb5765418ca02be1c6c81cb, type: 2}
-  - {fileID: 11400000, guid: b18c2281085db244c8ca6c70df0c32b9, type: 2}
-  - {fileID: 11400000, guid: 108b3a9fe3b5a674ca8b2faa92050f07, type: 2}
-  - {fileID: 11400000, guid: 8f06ba137f9bc3540ba0a64cc91ab1b5, type: 2}
-  - {fileID: 11400000, guid: ca1615e90552e734fac6f2d0dd6432ea, type: 2}
 --- !u!1 &1907593702
 GameObject:
   m_ObjectHideFlags: 0
@@ -1572,7 +1566,7 @@ MonoBehaviour:
   showDebugUI: 1
   fontSize: 22
   uiPosition: {x: 20, y: 20}
-  uiSize: {x: 460, y: 120}
+  uiSize: {x: 460, y: 150}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

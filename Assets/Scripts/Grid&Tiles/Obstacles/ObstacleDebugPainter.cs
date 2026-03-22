@@ -16,7 +16,7 @@ public class ObstacleDebugPainter : MonoBehaviour
     [SerializeField] private bool showDebugUI = true;
     [SerializeField] private int fontSize = 22;
     [SerializeField] private Vector2 uiPosition = new Vector2(20f, 160f);
-    [SerializeField] private Vector2 uiSize = new Vector2(460f, 120f);
+    [SerializeField] private Vector2 uiSize = new Vector2(520f, 140f);
 
     private InputSystem_Actions inputActions;
     private Vector2 pointerPosition;
@@ -27,7 +27,7 @@ public class ObstacleDebugPainter : MonoBehaviour
     private void Awake()
     {
         inputActions = new InputSystem_Actions();
-        
+
         obstacleTypes = Resources.LoadAll<ObstacleData>("ObstacleTypes");
 
         if (obstacleTypes.Length == 0)
@@ -41,12 +41,14 @@ public class ObstacleDebugPainter : MonoBehaviour
         inputActions.Enable();
         inputActions.Gameplay.PointerPosition.performed += OnPointerMove;
         inputActions.Gameplay.PaintClick.performed += OnPaintClick;
+        inputActions.Gameplay.EraseClick.performed += OnEraseClick;
     }
 
     private void OnDisable()
     {
         inputActions.Gameplay.PointerPosition.performed -= OnPointerMove;
         inputActions.Gameplay.PaintClick.performed -= OnPaintClick;
+        inputActions.Gameplay.EraseClick.performed -= OnEraseClick;
         inputActions.Disable();
     }
 
@@ -62,6 +64,9 @@ public class ObstacleDebugPainter : MonoBehaviour
 
     private void OnPaintClick(InputAction.CallbackContext context)
     {
+        if (!enabled)
+            return;
+
         if (obstacleManager == null)
         {
             Debug.LogError("ObstacleDebugPainter: ObstacleManager reference is missing.");
@@ -89,6 +94,35 @@ public class ObstacleDebugPainter : MonoBehaviour
             Debug.Log($"Placed obstacle: {selected.name} at {tile.GridPosition}");
         else
             Debug.Log($"Could not place obstacle: {selected.name} at {tile.GridPosition}");
+    }
+
+    private void OnEraseClick(InputAction.CallbackContext context)
+    {
+        if (!enabled)
+            return;
+
+        if (obstacleManager == null)
+        {
+            Debug.LogError("ObstacleDebugPainter: ObstacleManager reference is missing.");
+            return;
+        }
+
+        Ray ray = mainCamera.ScreenPointToRay(pointerPosition);
+
+        if (!Physics.Raycast(ray, out RaycastHit hit, 100f, tileLayerMask))
+            return;
+
+        GridTile tile = hit.collider.GetComponent<GridTile>();
+
+        if (tile == null)
+            return;
+
+        bool success = obstacleManager.TryRemoveObstacleAtTile(tile.GridPosition);
+
+        if (success)
+            Debug.Log($"Removed obstacle at {tile.GridPosition}");
+        else
+            Debug.Log($"No obstacle found at {tile.GridPosition}");
     }
 
     private void HandleObstacleSelectionInput()
@@ -173,7 +207,7 @@ public class ObstacleDebugPainter : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!showDebugUI)
+        if (!showDebugUI || !enabled)
             return;
 
         if (obstacleTypes == null || obstacleTypes.Length == 0)
@@ -192,7 +226,8 @@ public class ObstacleDebugPainter : MonoBehaviour
             $"<b>Obstacle Painter</b>\n" +
             $"Selected: {selected.name} ({selectedIndex + 1}/{obstacleTypes.Length})\n" +
             $"Footprint: {selected.FootprintSize.x}x{selected.FootprintSize.y}\n" +
-            $"{hotkeyHint} | Right Click: Place";
+            $"{hotkeyHint}\n" +
+            $"Right Click: Place | Middle Click: Erase";
 
         GUI.Label(
             new Rect(boxRect.x + 12, boxRect.y + 10, boxRect.width - 24, boxRect.height - 20),
