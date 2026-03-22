@@ -172,7 +172,7 @@ MonoBehaviour:
   showDebugUI: 1
   fontSize: 22
   uiPosition: {x: 20, y: 20}
-  uiSize: {x: 460, y: 120}
+  uiSize: {x: 670, y: 120}
 --- !u!1 &64387293
 GameObject:
   m_ObjectHideFlags: 0
@@ -1566,7 +1566,7 @@ MonoBehaviour:
   showDebugUI: 1
   fontSize: 22
   uiPosition: {x: 20, y: 20}
-  uiSize: {x: 460, y: 150}
+  uiSize: {x: 490, y: 150}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
