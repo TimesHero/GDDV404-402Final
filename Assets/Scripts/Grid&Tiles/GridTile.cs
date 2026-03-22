@@ -11,6 +11,8 @@ public enum TerrainType
 
 public class GridTile : MonoBehaviour
 {
+    private GameObject spawnedDecoration;
+    
     [Header("Grid Coordinates")] 
     public int X;
     public int Y;
@@ -144,6 +146,7 @@ public class GridTile : MonoBehaviour
         isWalkable = data.IsWalkable;
         
         ApplyTerrainVisualOnly();
+        RefreshDecoration();
     }
     private void ApplyTerrainVisualOnly()
     {
@@ -202,5 +205,33 @@ public class GridTile : MonoBehaviour
             cost += data.MovementPenaltyOnEntry;
 
         return cost;
+    }
+    
+    private void RefreshDecoration()
+    {
+        if (spawnedDecoration != null)
+        {
+            Destroy(spawnedDecoration);
+            spawnedDecoration = null;
+        }
+
+        TerrainTypeData data = CurrentTerrainData;
+
+        if (data == null)
+            return;
+
+        if (data.TileDecorationPrefab == null)
+            return;
+
+        spawnedDecoration = Instantiate(
+            data.TileDecorationPrefab,
+            transform.position + data.DecorationOffset,
+            Quaternion.identity,
+            transform
+        );
+    }
+    public void ForceSetWalkable(bool value)
+    {
+        isWalkable = value;
     }
 }
