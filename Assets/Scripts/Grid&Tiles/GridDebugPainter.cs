@@ -179,8 +179,8 @@ public class GridDebugPainter : MonoBehaviour
         TerrainTypeData selected = terrainTypes[selectedIndex];
 
         string hotkeyHint = terrainTypes.Length <= 10
-            ? "Hotkeys: 1-9, 0"
-            : "Hotkeys: 1-9, 0 | Q/E or Mouse Wheel for more";
+            ? "Hotkeys: 1-9, 0 | Q/E or Mouse Wheel for more"
+            : "Hotkeys: 1-9, 0";
 
         string text =
             $"<b>Terrain Painter</b>\n" +

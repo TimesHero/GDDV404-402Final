@@ -19,5 +19,5 @@ MonoBehaviour:
   visualScale: {x: 400, y: 400, z: 400}
   blocksMovement: 1
   footprintSize: {x: 2, y: 2}
-  paintTerrainUnderObstacle: 0
-  terrainTypeUnderObstacle: 3
+  paintTerrainUnderObstacle: 1
+  terrainTypeUnderObstacle: 4
