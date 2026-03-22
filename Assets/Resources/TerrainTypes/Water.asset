@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3122a27a2ad3b454183526ad384816ec, type: 3}
+  m_Name: Water
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainTypeData
+  terrainType: 2
+  movementCost: 1
+  damageOnEnter: 0
+  movementPenaltyOnStop: 0
+  damageOnStop: 0
+  movementPenaltyOnEntry: 3
+  isWalkable: 1
+  tileColor: {r: 0, g: 0.31260538, b: 1, a: 1}

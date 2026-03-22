@@ -56,6 +56,12 @@ public class GridUnit : MonoBehaviour
         if (isMoving)
             return;
         List<GridTile> pathCopy = new List<GridTile>(path);
+        
+        //////////TurnManager//////////////
+        if (TurnManager.Instance != null)
+            TurnManager.Instance.SetBusy();
+        ///////////////////////////////////
+        
         StartCoroutine(MoveRoutine(path));
     }
 
@@ -104,6 +110,11 @@ public class GridUnit : MonoBehaviour
             currentTile.SetOccupant(gameObject);
 
         isMoving = false;
+        
+        /////////////TurnManager////////////
+        if (TurnManager.Instance != null)
+            TurnManager.Instance.StartPlayerTurn();
+        ///////////////////////////////////
     }
     
     private Vector3 GetGroundedWorldPosition(GridTile tile)

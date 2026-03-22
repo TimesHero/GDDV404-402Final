@@ -3,39 +3,46 @@ using UnityEngine;
 
 public class TileManager : MonoBehaviour
 {
-    [Header("Terrain Database")]
-    [SerializeField] private List<TerrainTypeData> terrainTypes = new List<TerrainTypeData>();
-
     private Dictionary<TerrainType, TerrainTypeData> terrainLookup;
 
     private void Awake()
     {
-        BuildLookup();
+        LoadTerrainData();
     }
 
-    private void BuildLookup()
+    private void LoadTerrainData()
     {
         terrainLookup = new Dictionary<TerrainType, TerrainTypeData>();
 
-        foreach (TerrainTypeData data in terrainTypes)
+        TerrainTypeData[] allTerrainData = Resources.LoadAll<TerrainTypeData>("TerrainTypes");
+
+        if (allTerrainData.Length == 0)
+        {
+            Debug.LogError("TileManager: No TerrainTypeData found in Resources/TerrainTypes");
+            return;
+        }
+
+        foreach (TerrainTypeData data in allTerrainData)
         {
             if (data == null)
                 continue;
 
             if (terrainLookup.ContainsKey(data.TerrainType))
             {
-                Debug.LogWarning($"Duplicate TerrainTypeData found for {data.TerrainType}");
+                Debug.LogWarning($"Duplicate TerrainTypeData for {data.TerrainType}");
                 continue;
             }
 
             terrainLookup.Add(data.TerrainType, data);
         }
+
+        Debug.Log($"TileManager: Loaded {terrainLookup.Count} terrain types.");
     }
 
     public TerrainTypeData GetTerrainData(TerrainType terrainType)
     {
         if (terrainLookup == null)
-            BuildLookup();
+            LoadTerrainData();
 
         if (terrainLookup.TryGetValue(terrainType, out TerrainTypeData data))
             return data;
