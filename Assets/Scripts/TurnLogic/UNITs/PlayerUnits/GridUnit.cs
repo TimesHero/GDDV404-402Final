@@ -4,6 +4,13 @@ using UnityEngine;
 
 public class GridUnit : MonoBehaviour
 {
+    
+    [Header("UI")]
+    [SerializeField] private GameObject healthBarPrefab;
+    [SerializeField] private Vector3 healthBarOffset = new Vector3(0, 2f, 0);
+
+    private WorldHealthBar healthBarInstance;
+    
     [Header("Team")]
     [SerializeField] private UnitTeam team = UnitTeam.Player;
     
@@ -11,6 +18,11 @@ public class GridUnit : MonoBehaviour
     [SerializeField] private float moveSpeed = 4f;
     [SerializeField] private float rotationSpeed = 10f;
     [SerializeField] private float groundOffset = 0.02f;
+    
+    [Header("Combat")]
+    [SerializeField] private int maxHP = 20;
+    [SerializeField] private int attackDamage = 5;
+    [SerializeField] private int attackRange = 1;
     
     [Header("Movement Points")]
     [SerializeField] private int maxMovementPoints = 5;
@@ -25,7 +37,13 @@ public class GridUnit : MonoBehaviour
     
     private GridTile currentTile;
     private bool isMoving;
+    private int currentHP;
 
+    public int MaxHP => maxHP;
+    public int CurrentHP => currentHP;
+    public int AttackDamage => attackDamage;
+    public int AttackRange => attackRange;
+    public bool IsDead => currentHP <= 0;
     public GridTile CurrentTile => currentTile;
     public bool IsMoving => isMoving;
     public UnitTeam Team => team;
@@ -38,6 +56,19 @@ public class GridUnit : MonoBehaviour
             visualRoot = transform;
         
         visualRotationOffset = Quaternion.Euler(visualRotationOffsetEuler);
+        currentHP = maxHP;
+    }
+    
+    private void Start()
+    {
+        if (healthBarPrefab != null)
+        {
+            GameObject bar = Instantiate(healthBarPrefab, transform);
+            bar.transform.localPosition = healthBarOffset;
+
+            healthBarInstance = bar.GetComponent<WorldHealthBar>();
+            healthBarInstance.Initialize(this);
+        }
     }
 
     public void PlaceOnTile(GridTile tile)
@@ -163,5 +194,44 @@ public class GridUnit : MonoBehaviour
             combinedBounds.Encapsulate(renderers[i].bounds);
 
         return transform.position.y - combinedBounds.min.y;
+    }
+    
+    public void TakeDamage(int amount)
+    {
+        if (IsDead)
+            return;
+
+        currentHP -= amount;
+        currentHP = Mathf.Max(currentHP, 0);
+
+        Debug.Log($"{name} took {amount} damage. HP: {currentHP}/{maxHP}");
+
+        if (currentHP <= 0)
+            Die();
+    }
+
+    private void Die()
+    {
+        Debug.Log($"{name} died.");
+
+        if (currentTile != null)
+            currentTile.SetOccupant(null);
+
+        gameObject.SetActive(false);
+
+        if (BattleStateManager.Instance != null)
+            BattleStateManager.Instance.CheckBattleState();
+
+        Destroy(gameObject);
+    }
+    public bool IsTargetInRange(GridUnit target)
+    {
+        if (target == null || target.CurrentTile == null || CurrentTile == null)
+            return false;
+
+        int distance = Mathf.Abs(CurrentTile.X - target.CurrentTile.X) +
+                       Mathf.Abs(CurrentTile.Y - target.CurrentTile.Y);
+
+        return distance <= attackRange;
     }
 }

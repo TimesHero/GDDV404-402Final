@@ -140,6 +140,13 @@ public class TurnManager : MonoBehaviour
             StartPlayerTurn();
             yield break;
         }
+        
+        if (!controller.LastActionWasMovement)
+        {
+            yield return new WaitForSeconds(0.4f);
+            StartPlayerTurn();
+            yield break;
+        }
 
         bool finished = false;
 

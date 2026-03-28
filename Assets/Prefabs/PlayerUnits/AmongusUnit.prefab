@@ -190,9 +190,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6a9e3b7af6aa3048b622fb7dd31263c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridUnit
+  healthBarPrefab: {fileID: 6895202677356839175, guid: 7dd42f0c9c749124a8c636f44f734898, type: 3}
+  healthBarOffset: {x: 0, y: 2, z: 0}
+  team: 0
   moveSpeed: 4
   rotationSpeed: 10
   groundOffset: 0
+  maxHP: 20
+  attackDamage: 5
+  attackRange: 1
   maxMovementPoints: 5
   visualRoot: {fileID: 691041812731655088}
   visualRotationOffsetEuler: {x: 0, y: 0, z: 0}
