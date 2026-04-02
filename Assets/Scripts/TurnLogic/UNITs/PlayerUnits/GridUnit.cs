@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class GridUnit : MonoBehaviour
 {
+    [Header("Turn Rules")]
+    [SerializeField] private UnitTurnRulesData turnRules;
     
     [Header("UI")]
     [SerializeField] private GameObject healthBarPrefab;
@@ -38,6 +40,13 @@ public class GridUnit : MonoBehaviour
     private GridTile currentTile;
     private bool isMoving;
     private int currentHP;
+    
+    private bool hasMovedThisTurn = false;
+    private bool hasAttackedThisTurn = false;
+
+    public bool HasMovedThisTurn => hasMovedThisTurn;
+    public bool HasAttackedThisTurn => hasAttackedThisTurn;
+    public UnitTurnRulesData TurnRules => turnRules;
 
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
@@ -147,12 +156,12 @@ public class GridUnit : MonoBehaviour
             currentTile.SetOccupant(gameObject);
 
         isMoving = false;
-        
-        if (TurnManager.Instance != null && team == UnitTeam.Player)
-        {
-            TurnManager.Instance.StartPlayerTurn();
-        }
 
+        if (TurnManager.Instance != null && Team == UnitTeam.Player)
+        {
+            TurnManager.Instance.ReturnToPlayerControl();
+        }
+        
         OnMovementFinished?.Invoke(this);
     }
     
@@ -220,7 +229,7 @@ public class GridUnit : MonoBehaviour
         gameObject.SetActive(false);
 
         if (BattleStateManager.Instance != null)
-            BattleStateManager.Instance.CheckBattleState();
+            BattleStateManager.Instance.NotifyUnitDied(this);
 
         Destroy(gameObject);
     }
@@ -233,5 +242,82 @@ public class GridUnit : MonoBehaviour
                        Mathf.Abs(CurrentTile.Y - target.CurrentTile.Y);
 
         return distance <= attackRange;
+    }
+    
+    public bool CanAttack(GridUnit target)
+    {
+        if (target == null)
+            return false;
+
+        if (target == this)
+            return false;
+
+        if (target.Team == Team)
+            return false;
+
+        return IsTargetInRange(target);
+    }
+
+    public void Attack(GridUnit target)
+    {
+        if (!CanAttack(target))
+            return;
+
+        Debug.Log($"{name} attacks {target.name} for {attackDamage} damage.");
+        target.TakeDamage(attackDamage);
+    }
+    
+    public bool CanMoveThisTurn()
+    {
+        if (IsDead)
+            return false;
+
+        if (hasMovedThisTurn)
+            return false;
+
+        if (hasAttackedThisTurn)
+        {
+            if (turnRules == null)
+                return false;
+
+            return turnRules.CanMoveAfterAttacking;
+        }
+
+        return true;
+    }
+
+    public bool CanAttackThisTurn()
+    {
+        if (IsDead)
+            return false;
+
+        if (hasAttackedThisTurn)
+            return false;
+
+        if (hasMovedThisTurn)
+        {
+            if (turnRules == null)
+                return false;
+
+            return turnRules.CanAttackAfterMoving;
+        }
+
+        return true;
+    }
+
+    public void MarkMovedThisTurn()
+    {
+        hasMovedThisTurn = true;
+    }
+
+    public void MarkAttackedThisTurn()
+    {
+        hasAttackedThisTurn = true;
+    }
+
+    public void ResetTurnState()
+    {
+        hasMovedThisTurn = false;
+        hasAttackedThisTurn = false;
     }
 }

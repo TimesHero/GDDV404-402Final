@@ -79,6 +79,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6a9e3b7af6aa3048b622fb7dd31263c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridUnit
+  turnRules: {fileID: 11400000, guid: 69148204ab340f94eb9341acda3e259c, type: 2}
   healthBarPrefab: {fileID: 6895202677356839175, guid: 7dd42f0c9c749124a8c636f44f734898, type: 3}
   healthBarOffset: {x: 0, y: 2, z: 0}
   team: 1
@@ -103,6 +104,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a46c821718e49814db6ddfd2946dbc0e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyController
+  gridManager: {fileID: 0}
   controlledUnit: {fileID: 5741040883839400063}
   pathFinder: {fileID: 0}
   maxTilesToMovePerTurn: 3

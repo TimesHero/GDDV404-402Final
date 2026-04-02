@@ -47,6 +47,8 @@ public class TurnManager : MonoBehaviour
 
     private void OnEndTurnPressed(InputAction.CallbackContext context)
     {
+        if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+            return;
         if (CurrentTurn == TurnState.Busy)
             return;
 
@@ -79,13 +81,37 @@ public class TurnManager : MonoBehaviour
     {
         CurrentTurn = TurnState.PlayerTurn;
         RefreshTurnUI();
+
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit != null && unit.Team == UnitTeam.Player)
+                unit.ResetTurnState();
+        }
+
         Debug.Log("Turn State: Player Turn");
+    }
+    public void ReturnToPlayerControl()
+    {
+        CurrentTurn = TurnState.PlayerTurn;
+        RefreshTurnUI();
+        Debug.Log("Turn State: Player Control Restored");
     }
 
     public void StartEnemyTurn()
     {
         CurrentTurn = TurnState.EnemyTurn;
         RefreshTurnUI();
+
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit != null && unit.Team == UnitTeam.Enemy)
+                unit.ResetTurnState();
+        }
+
         Debug.Log("Turn State: Enemy Turn");
 
         StartCoroutine(RunEnemyTurnRoutine());

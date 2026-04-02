@@ -82,7 +82,12 @@ public class TileSelector : MonoBehaviour
     
     private void OnClick(InputAction.CallbackContext context)
     {
-        ////////////////////TurnManager Check/////////////////////////
+        if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+            return;
+        
+        if (currentHoveredTile == null)
+            return;
+
         if (TurnManager.Instance == null)
         {
             Debug.LogError("TileSelector: TurnManager instance is missing.");
@@ -90,9 +95,6 @@ public class TileSelector : MonoBehaviour
         }
 
         if (!TurnManager.Instance.IsPlayerTurn() || TurnManager.Instance.IsBusy())
-            return;
-        /////////////////////////////////////////////////////////////
-        if (currentHoveredTile == null)
             return;
 
         if (pathFinder == null)
@@ -117,19 +119,56 @@ public class TileSelector : MonoBehaviour
 
         if (activeUnit.IsMoving)
             return;
-        
+
         if (selectedUnit == null)
         {
             if (currentHoveredTile != activeUnit.CurrentTile)
                 return;
 
+            if (!activeUnit.CanMoveThisTurn() && !activeUnit.CanAttackThisTurn())
+            {
+                Debug.Log("This unit has no actions left this turn.");
+                return;
+            }
+
             SelectUnit(activeUnit);
+            return;
+        }
+
+        if (!selectedUnit.CanMoveThisTurn() && !selectedUnit.CanAttackThisTurn())
+        {
+            Debug.Log("This unit has no actions left this turn.");
+            DeselectUnit();
             return;
         }
 
         if (currentHoveredTile == selectedUnit.CurrentTile)
         {
             DeselectUnit();
+            return;
+        }
+        
+        if (currentHoveredTile.isOccupied && currentHoveredTile.OccupyingUnit != null)
+        {
+            GridUnit targetUnit = currentHoveredTile.OccupyingUnit.GetComponent<GridUnit>();
+
+            if (targetUnit != null && selectedUnit.CanAttack(targetUnit))
+            {
+                selectedUnit.Attack(targetUnit);
+                selectedUnit.MarkAttackedThisTurn();
+
+                if (selectedUnit.CanMoveThisTurn())
+                    RestoreSelectionVisuals();
+                else
+                    DeselectUnit();
+
+                return;
+            }
+        }
+        
+        if (!selectedUnit.CanMoveThisTurn())
+        {
+            Debug.Log("This unit cannot move anymore this turn.");
             return;
         }
 
@@ -152,6 +191,7 @@ public class TileSelector : MonoBehaviour
             return;
         }
 
+        ClearPreviewPath();
         ClearPathPreview();
 
         currentPath = new List<GridTile>(path);
@@ -167,8 +207,8 @@ public class TileSelector : MonoBehaviour
             tile.ShowOverlayColor(finalPathColor);
         }
 
+        selectedUnit.MarkMovedThisTurn();
         selectedUnit.MoveAlongPath(new List<GridTile>(path));
-
         DeselectUnit();
     }
     
@@ -407,5 +447,32 @@ public class TileSelector : MonoBehaviour
         }
 
         tile.ResetHighlight();
+    }
+    
+    private void HandlePostActionSelection(GridUnit unit)
+    {
+        if (unit == null)
+        {
+            DeselectUnit();
+            return;
+        }
+
+        bool canStillMove = unit.CanMoveThisTurn();
+        bool canStillAttack = unit.CanAttackThisTurn();
+
+        if (!canStillMove && !canStillAttack)
+        {
+            DeselectUnit();
+            return;
+        }
+
+        if (unit.TurnRules != null && unit.TurnRules.AutoDeselectWhenOutOfActions)
+        {
+            RestoreSelectionVisuals();
+        }
+        else
+        {
+            RestoreSelectionVisuals();
+        }
     }
 }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class EnemyController : MonoBehaviour
 {
-    
+    private GridUnit pendingAttackTarget;
     [SerializeField] private GridManager gridManager;
     [Header("References")]
     [SerializeField] private GridUnit controlledUnit;
@@ -29,6 +29,8 @@ public class EnemyController : MonoBehaviour
     public bool TryAct(GridUnit playerUnit)
     {
         LastActionWasMovement = false;
+        pendingAttackTarget = null;
+
         Debug.Log("Enemy TryAct started.");
 
         if (controlledUnit == null)
@@ -55,38 +57,41 @@ public class EnemyController : MonoBehaviour
             return false;
         }
         
-        if (controlledUnit.IsTargetInRange(playerUnit))
+        if (controlledUnit.CanAttack(playerUnit))
         {
             Debug.Log("Enemy attacks player.");
-            playerUnit.TakeDamage(controlledUnit.AttackDamage);
+            controlledUnit.Attack(playerUnit);
+            controlledUnit.MarkAttackedThisTurn();
             LastActionWasMovement = false;
             return true;
         }
+        
+        if (!controlledUnit.CanMoveThisTurn())
+            return false;
 
         GridTile startTile = controlledUnit.CurrentTile;
         GridTile targetTile = GetClosestAdjacentTile(playerUnit);
-
-        Debug.Log($"Enemy start tile null: {startTile == null}");
-        Debug.Log($"Player target tile null: {targetTile == null}");
 
         if (startTile == null || targetTile == null)
             return false;
 
         List<GridTile> fullPath = pathFinder.FindPath(startTile, targetTile);
 
-        Debug.Log($"Full path found: {fullPath != null}");
-        Debug.Log($"Full path count: {(fullPath != null ? fullPath.Count : 0)}");
-
         if (fullPath == null || fullPath.Count <= 1)
-        {
-            Debug.LogWarning("EnemyController: path is null or too short.");
             return false;
-        }
 
         List<GridTile> trimmedPath = TrimPath(fullPath, maxTilesToMovePerTurn);
-        Debug.Log($"Trimmed path count: {trimmedPath.Count}");
 
+        // Preparar ataque post-movimiento si las reglas lo permiten
+        if (controlledUnit.TurnRules != null && controlledUnit.TurnRules.CanAttackAfterMoving)
+            pendingAttackTarget = playerUnit;
+
+        controlledUnit.OnMovementFinished -= HandleMovementFinished;
+        controlledUnit.OnMovementFinished += HandleMovementFinished;
+
+        controlledUnit.MarkMovedThisTurn();
         controlledUnit.MoveAlongPath(trimmedPath);
+
         LastActionWasMovement = true;
         Debug.Log("Enemy movement started.");
         return true;
@@ -146,5 +151,22 @@ public class EnemyController : MonoBehaviour
         }
 
         return bestTile;
+    }
+    
+    private void HandleMovementFinished(GridUnit unit)
+    {
+        controlledUnit.OnMovementFinished -= HandleMovementFinished;
+
+        if (pendingAttackTarget == null)
+            return;
+
+        if (controlledUnit.CanAttack(pendingAttackTarget))
+        {
+            Debug.Log("Enemy attacks after moving.");
+            controlledUnit.Attack(pendingAttackTarget);
+            controlledUnit.MarkAttackedThisTurn();
+        }
+
+        pendingAttackTarget = null;
     }
 }

@@ -1,5 +1,8 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class BattleStateManager : MonoBehaviour
 {
@@ -7,6 +10,7 @@ public class BattleStateManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI resultText;
+    [SerializeField] private Button restartButton;
 
     private bool battleEnded = false;
 
@@ -24,6 +28,27 @@ public class BattleStateManager : MonoBehaviour
 
         if (resultText != null)
             resultText.text = "";
+
+        if (restartButton != null)
+        {
+            restartButton.gameObject.SetActive(false);
+            restartButton.onClick.RemoveAllListeners();
+            restartButton.onClick.AddListener(RestartScene);
+        }
+    }
+
+    public void NotifyUnitDied(GridUnit deadUnit)
+    {
+        if (battleEnded)
+            return;
+
+        StartCoroutine(CheckBattleStateNextFrame());
+    }
+
+    private IEnumerator CheckBattleStateNextFrame()
+    {
+        yield return null;
+        CheckBattleState();
     }
 
     public void CheckBattleState()
@@ -41,6 +66,9 @@ public class BattleStateManager : MonoBehaviour
             if (unit == null)
                 continue;
 
+            if (!unit.gameObject.activeInHierarchy)
+                continue;
+
             if (unit.Team == UnitTeam.Player)
                 hasPlayer = true;
             else if (unit.Team == UnitTeam.Enemy)
@@ -48,9 +76,9 @@ public class BattleStateManager : MonoBehaviour
         }
 
         if (!hasEnemy)
-            EndBattle("Victory!");
+            EndBattle("You Win");
         else if (!hasPlayer)
-            EndBattle("Defeat!");
+            EndBattle("You Lose");
     }
 
     private void EndBattle(string result)
@@ -60,6 +88,14 @@ public class BattleStateManager : MonoBehaviour
         if (resultText != null)
             resultText.text = result;
 
+        if (restartButton != null)
+            restartButton.gameObject.SetActive(true);
+
         Debug.Log(result);
+    }
+
+    private void RestartScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
