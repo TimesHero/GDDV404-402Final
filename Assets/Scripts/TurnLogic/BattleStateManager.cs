@@ -6,6 +6,7 @@ using UnityEngine.UI;
 
 public class BattleStateManager : MonoBehaviour
 {
+    [SerializeField] private TileSelector tileSelector;
     public static BattleStateManager Instance { get; private set; }
 
     [Header("UI")]
@@ -83,6 +84,8 @@ public class BattleStateManager : MonoBehaviour
 
     private void EndBattle(string result)
     {
+        if (tileSelector != null)
+            tileSelector.ForceClearSelectionAndHighlights();
         battleEnded = true;
 
         if (resultText != null)

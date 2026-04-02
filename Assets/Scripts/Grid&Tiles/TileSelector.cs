@@ -475,4 +475,20 @@ public class TileSelector : MonoBehaviour
             RestoreSelectionVisuals();
         }
     }
+    public void ForceClearSelectionAndHighlights()
+    {
+        if (currentHoveredTile != null)
+            currentHoveredTile.ResetHighlight();
+
+        currentHoveredTile = null;
+        previousHoveredTile = null;
+
+        selectedUnit = null;
+        selectedStartTile = null;
+        selectedTargetTile = null;
+
+        ClearPreviewPath();
+        ClearPathPreview();
+        ClearReachableTiles();
+    }
 }

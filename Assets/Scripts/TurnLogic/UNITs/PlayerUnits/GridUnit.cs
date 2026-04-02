@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class GridUnit : MonoBehaviour
 {
+    [Header("Attack Visuals")]
+    [SerializeField] private AttackEffectData attackEffectData;
+    
     [Header("Turn Rules")]
     [SerializeField] private UnitTurnRulesData turnRules;
     
@@ -262,7 +265,10 @@ public class GridUnit : MonoBehaviour
     {
         if (!CanAttack(target))
             return;
-
+        
+        FaceTarget(target);
+        ShowAttackEffect(target);
+        
         Debug.Log($"{name} attacks {target.name} for {attackDamage} damage.");
         target.TakeDamage(attackDamage);
     }
@@ -319,5 +325,73 @@ public class GridUnit : MonoBehaviour
     {
         hasMovedThisTurn = false;
         hasAttackedThisTurn = false;
+    }
+    
+    private void FaceTarget(GridUnit target)
+    {
+        if (target == null || visualRoot == null)
+            return;
+
+        Vector3 direction = target.transform.position - transform.position;
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.0001f)
+            return;
+
+        Quaternion lookRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        Quaternion finalRotation = lookRotation * visualRotationOffset;
+
+        visualRoot.rotation = finalRotation;
+    }
+    
+    private void ShowAttackEffect(GridUnit target)
+    {
+        if (attackEffectData == null || attackEffectData.EffectPrefab == null)
+            return;
+
+        Vector3 spawnPosition = transform.position + attackEffectData.PositionOffset;
+
+        GameObject effectInstance = Instantiate(
+            attackEffectData.EffectPrefab,
+            spawnPosition,
+            Quaternion.identity
+        );
+
+        effectInstance.transform.localScale = Vector3.zero;
+
+        StartCoroutine(AnimateAttackEffect(effectInstance));
+    }
+    private IEnumerator AnimateAttackEffect(GameObject effectInstance)
+    {
+        if (effectInstance == null || attackEffectData == null)
+            yield break;
+
+        Vector3 startPosition = effectInstance.transform.position;
+        Vector3 endPosition = startPosition + Vector3.up * attackEffectData.RiseAmount;
+
+        float elapsed = 0f;
+        
+        while (elapsed < attackEffectData.PopInDuration)
+        {
+            if (effectInstance == null)
+                yield break;
+
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / attackEffectData.PopInDuration);
+
+            effectInstance.transform.localScale = Vector3.Lerp(Vector3.zero, attackEffectData.EffectScale, t);
+            effectInstance.transform.position = Vector3.Lerp(startPosition, endPosition, t);
+
+            yield return null;
+        }
+
+        effectInstance.transform.localScale = attackEffectData.EffectScale;
+        effectInstance.transform.position = endPosition;
+        
+        float remainingTime = Mathf.Max(0f, attackEffectData.Duration - attackEffectData.PopInDuration);
+        yield return new WaitForSeconds(remainingTime);
+
+        if (effectInstance != null)
+            Destroy(effectInstance);
     }
 }

@@ -6,6 +6,8 @@ using System.Collections;
 public class TurnManager : MonoBehaviour
 {
     public static TurnManager Instance { get; private set; }
+    
+    [SerializeField] private TileSelector tileSelector;
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI turnText;
@@ -101,6 +103,9 @@ public class TurnManager : MonoBehaviour
 
     public void StartEnemyTurn()
     {
+        if (tileSelector != null)
+            tileSelector.ForceClearSelectionAndHighlights();
+        
         CurrentTurn = TurnState.EnemyTurn;
         RefreshTurnUI();
 
