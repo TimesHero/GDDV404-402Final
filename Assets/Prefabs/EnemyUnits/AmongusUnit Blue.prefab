@@ -45,7 +45,7 @@ GameObject:
   - component: {fileID: 958941310754664356}
   - component: {fileID: 7552687097517614618}
   m_Layer: 0
-  m_Name: AmongusUnit 1
+  m_Name: AmongusUnit Blue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -84,7 +84,7 @@ MonoBehaviour:
   healthBarPrefab: {fileID: 6895202677356839175, guid: 7dd42f0c9c749124a8c636f44f734898, type: 3}
   healthBarOffset: {x: 0, y: 2, z: 0}
   team: 1
-  unitData: {fileID: 11400000, guid: 00379e6b9c8398746a21784ffc27804c, type: 2}
+  unitData: {fileID: 11400000, guid: 2897d3eba66174b4db75276d9203d1b5, type: 2}
   moveSpeed: 4
   rotationSpeed: 10
   groundOffset: 0
@@ -105,7 +105,6 @@ MonoBehaviour:
   gridManager: {fileID: 0}
   controlledUnit: {fileID: 5741040883839400063}
   pathFinder: {fileID: 0}
-  maxTilesToMovePerTurn: 3
 --- !u!65 &7552687097517614618
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -195,6 +194,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: imposterFull
       objectReference: {fileID: 0}
+    - target: {fileID: 1785429210578475195, guid: 00cbd4a079db2dd46b0bddfc4a3c59f8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f13197d7a0b840c4ba8ad2b3d5147660, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

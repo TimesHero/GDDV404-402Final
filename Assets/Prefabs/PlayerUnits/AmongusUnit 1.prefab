@@ -99,7 +99,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e8a5f65159a259d4da6d9ecd01ce5477, type: 2}
+  - {fileID: 2100000, guid: 80036199449ae624f9510abe71ccf80b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -156,7 +156,7 @@ GameObject:
   - component: {fileID: 4821790892492630797}
   - component: {fileID: 5741040883839400063}
   m_Layer: 0
-  m_Name: AmongusUnit
+  m_Name: AmongusUnit 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -195,7 +195,7 @@ MonoBehaviour:
   healthBarPrefab: {fileID: 6895202677356839175, guid: 7dd42f0c9c749124a8c636f44f734898, type: 3}
   healthBarOffset: {x: 0, y: 2, z: 0}
   team: 0
-  unitData: {fileID: 11400000, guid: 520b7988f0cd5f3429035677ee655816, type: 2}
+  unitData: {fileID: 11400000, guid: 129c6a5d9a3d0134ea0d1ef9c9eb59b5, type: 2}
   moveSpeed: 4
   rotationSpeed: 10
   groundOffset: 0

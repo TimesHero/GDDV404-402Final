@@ -8,9 +8,7 @@ public class EnemyController : MonoBehaviour
     [Header("References")]
     [SerializeField] private GridUnit controlledUnit;
     [SerializeField] private AStarPathFinder pathFinder;
-
-    [Header("AI Settings")]
-    [SerializeField] private int maxTilesToMovePerTurn = 3;
+    
     
     public bool LastActionWasMovement { get; private set; }
 
@@ -57,11 +55,9 @@ public class EnemyController : MonoBehaviour
             return false;
         }
         
-        if (controlledUnit.CanAttack(playerUnit))
+        if (controlledUnit.TryAttack(playerUnit))
         {
             Debug.Log("Enemy attacks player.");
-            controlledUnit.Attack(playerUnit);
-            controlledUnit.MarkAttackedThisTurn();
             LastActionWasMovement = false;
             return true;
         }
@@ -79,10 +75,18 @@ public class EnemyController : MonoBehaviour
 
         if (fullPath == null || fullPath.Count <= 1)
             return false;
-
-        List<GridTile> trimmedPath = TrimPath(fullPath, maxTilesToMovePerTurn);
-
-        // Preparar ataque post-movimiento si las reglas lo permiten
+        
+        if (controlledUnit.MaxMovementPoints <= 0)
+        {
+            Debug.LogWarning($"{controlledUnit.name} has no movement points.");
+            return false;
+        }
+        
+        List<GridTile> trimmedPath = TrimPathByMovementBudget(fullPath, controlledUnit);
+        
+        if (trimmedPath == null || trimmedPath.Count <= 1)
+            return false;
+        
         if (controlledUnit.TurnRules != null && controlledUnit.TurnRules.CanAttackAfterMoving)
             pendingAttackTarget = playerUnit;
 
@@ -97,16 +101,33 @@ public class EnemyController : MonoBehaviour
         return true;
     }
 
-    private List<GridTile> TrimPath(List<GridTile> fullPath, int maxSteps)
+    private List<GridTile> TrimPathByMovementBudget(List<GridTile> fullPath, GridUnit unit)
     {
         List<GridTile> result = new List<GridTile>();
 
-        result.Add(fullPath[0]); // start
+        if (fullPath == null || fullPath.Count == 0 || unit == null)
+            return result;
 
-        int maxIndex = Mathf.Min(maxSteps, fullPath.Count - 1);
+        result.Add(fullPath[0]); // start tile
 
-        for (int i = 1; i <= maxIndex; i++)
-            result.Add(fullPath[i]);
+        int remainingMovement = unit.MaxMovementPoints;
+
+        for (int i = 1; i < fullPath.Count; i++)
+        {
+            GridTile tile = fullPath[i];
+            bool isFinalDestination = (i == fullPath.Count - 1);
+
+            int costToEnter = unit.GetMovementCostForTile(tile, isFinalDestination);
+
+            if (costToEnter > remainingMovement)
+                break;
+
+            remainingMovement -= costToEnter;
+            result.Add(tile);
+
+            if (remainingMovement <= 0)
+                break;
+        }
 
         return result;
     }
@@ -160,11 +181,9 @@ public class EnemyController : MonoBehaviour
         if (pendingAttackTarget == null)
             return;
 
-        if (controlledUnit.CanAttack(pendingAttackTarget))
+        if (controlledUnit.TryAttack(pendingAttackTarget))
         {
             Debug.Log("Enemy attacks after moving.");
-            controlledUnit.Attack(pendingAttackTarget);
-            controlledUnit.MarkAttackedThisTurn();
         }
 
         pendingAttackTarget = null;
