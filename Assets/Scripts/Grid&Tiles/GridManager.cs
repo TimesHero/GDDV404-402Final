@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 public class GridManager : MonoBehaviour
 {
+    [SerializeField] private GridManager gridManager;
+    
     [Header("Grid Size")] 
     [SerializeField] private int widht = 8;
     [SerializeField] private int height = 8;
@@ -22,6 +24,8 @@ public class GridManager : MonoBehaviour
     private void Awake()
     {
         GenerateGrid();
+        if (gridManager == null)
+            gridManager = FindFirstObjectByType<GridManager>();
     }
 
     private void GenerateGrid()

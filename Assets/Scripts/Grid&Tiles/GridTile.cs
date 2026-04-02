@@ -29,6 +29,8 @@ public class GridTile : MonoBehaviour
     public bool isOccupied;
     public GameObject occupyingUnit;
     
+    public GameObject OccupyingUnit => occupyingUnit;
+    
     [Header("Visuals")]
     [SerializeField] private Renderer tileRenderer;
     [SerializeField] private Renderer highlightOverlayRenderer;
