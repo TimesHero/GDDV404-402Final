@@ -1904,7 +1904,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 447f89985c32bba479b45326c0a8d157, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TurnManager
+<<<<<<< HEAD
   tileSelector: {fileID: 1278334534}
+=======
+  tileSelector: {fileID: 0}
+>>>>>>> AJ/3Dmodels
   turnText: {fileID: 321561222}
   playerHintText: {fileID: 1528415862}
   playerSpawner: {fileID: 99915199}
@@ -2081,7 +2085,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 19238b7f6bed1f9409dc219a5aa713b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleStateManager
+<<<<<<< HEAD
   tileSelector: {fileID: 1278334534}
+=======
+  tileSelector: {fileID: 0}
+>>>>>>> AJ/3Dmodels
   resultText: {fileID: 479920876}
   restartButton: {fileID: 988552884}
 --- !u!1 &1896412702
