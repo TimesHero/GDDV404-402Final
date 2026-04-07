@@ -84,13 +84,10 @@ MonoBehaviour:
   healthBarPrefab: {fileID: 6895202677356839175, guid: 7dd42f0c9c749124a8c636f44f734898, type: 3}
   healthBarOffset: {x: 0, y: 2, z: 0}
   team: 1
+  unitData: {fileID: 11400000, guid: 00379e6b9c8398746a21784ffc27804c, type: 2}
   moveSpeed: 4
   rotationSpeed: 10
   groundOffset: 0
-  maxHP: 20
-  attackDamage: 5
-  attackRange: 1
-  maxMovementPoints: 5
   visualRoot: {fileID: 691041812731655088}
   visualRotationOffsetEuler: {x: 0, y: 0, z: 0}
 --- !u!114 &958941310754664356

@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Grass
   m_EditorClassIdentifier: Assembly-CSharp::TerrainTypeData
   terrainType: 1
-  movementCost: 1
+  movementCost: 2
   damageOnEnter: 0
   movementPenaltyOnStop: 0
   damageOnStop: 0
-  movementPenaltyOnEntry: 2
+  movementPenaltyOnEntry: 1
   isWalkable: 1
   tileColor: {r: 1, g: 1, b: 1, a: 1}
   tileDecorationPrefab: {fileID: 0}
