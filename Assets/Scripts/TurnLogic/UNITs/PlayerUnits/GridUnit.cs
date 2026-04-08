@@ -19,20 +19,14 @@ public class GridUnit : MonoBehaviour
     [Header("Team")]
     [SerializeField] private UnitTeam team = UnitTeam.Player;
     
+    [Header("Unit Data")]
+    [SerializeField] private UnitData unitData;
+    
     [Header("Unit Settings")]
     [SerializeField] private float moveSpeed = 4f;
     [SerializeField] private float rotationSpeed = 10f;
     [SerializeField] private float groundOffset = 0.02f;
     
-    [Header("Combat")]
-    [SerializeField] private int maxHP = 20;
-    [SerializeField] private int attackDamage = 5;
-    [SerializeField] private int attackRange = 1;
-    
-    [Header("Movement Points")]
-    [SerializeField] private int maxMovementPoints = 5;
-
-    public int MaxMovementPoints => maxMovementPoints;
     
     [Header("Visual Root")]
     [SerializeField] private Transform visualRoot;
@@ -50,25 +44,47 @@ public class GridUnit : MonoBehaviour
     public bool HasMovedThisTurn => hasMovedThisTurn;
     public bool HasAttackedThisTurn => hasAttackedThisTurn;
     public UnitTurnRulesData TurnRules => turnRules;
-
-    public int MaxHP => maxHP;
+    
     public int CurrentHP => currentHP;
-    public int AttackDamage => attackDamage;
-    public int AttackRange => attackRange;
     public bool IsDead => currentHP <= 0;
     public GridTile CurrentTile => currentTile;
     public bool IsMoving => isMoving;
     public UnitTeam Team => team;
     
+    public UnitData UnitData => unitData;
+    public string UnitName => unitData != null ? unitData.unitName : "Unnamed Unit";
+    public int MaxHP => unitData != null ? unitData.maxHP : 1;
+    public int AttackDamage => unitData != null ? unitData.attackPower : 0;
+    public int Defense => unitData != null ? unitData.defense : 0;
+    public int AttackRange => unitData != null ? unitData.attackRange : 1;
+    public int MaxMovementPoints => unitData != null ? unitData.movementPoints : 1;
+    public AttackType AttackType => unitData != null ? unitData.attackType : AttackType.Melee;
+    public ElementType ElementType => unitData != null ? unitData.elementType : ElementType.None;
+    public AIType AIType => unitData != null ? unitData.aiType : AIType.None;
+    public int VisionRange => unitData != null ? unitData.visionRange : 1;
+    public float VisionAngle => unitData != null ? unitData.visionAngle : 90f;
+    
     public System.Action<GridUnit> OnMovementFinished;
+    
+    public int GetMovementCostForTile(GridTile tile, bool isFinalDestination = false)
+    {
+        if (tile == null)
+            return int.MaxValue;
+
+        return tile.GetTraversalCost(isFinalDestination);
+    }
     
     private void Awake()
     {
         if (visualRoot == null)
             visualRoot = transform;
-        
+
         visualRotationOffset = Quaternion.Euler(visualRotationOffsetEuler);
-        currentHP = maxHP;
+
+        if (unitData != null)
+        {
+            currentHP = MaxHP;
+        }
     }
     
     private void Start()
@@ -96,7 +112,29 @@ public class GridUnit : MonoBehaviour
 
         transform.position = GetGroundedWorldPosition(tile);
     }
+    
+    public bool TryMove(List<GridTile> path)
+    {
+        if (!CanMoveThisTurn())
+            return false;
 
+        if (path == null || path.Count == 0)
+            return false;
+
+        if (isMoving)
+            return false;
+
+        if (currentTile == null)
+            return false;
+
+        if (path[0] != currentTile)
+            return false;
+
+        MarkMovedThisTurn();
+        MoveAlongPath(path);
+        return true;
+    }
+    
     public void MoveAlongPath(List<GridTile> path)
     {
         if (path == null || path.Count == 0)
@@ -104,7 +142,9 @@ public class GridUnit : MonoBehaviour
 
         if (isMoving)
             return;
-        List<GridTile> pathCopy = new List<GridTile>(path);
+        
+        //not in use anymore
+        //List<GridTile> pathCopy = new List<GridTile>(path);
         
         //////////TurnManager//////////////
         if (TurnManager.Instance != null)
@@ -216,7 +256,7 @@ public class GridUnit : MonoBehaviour
         currentHP -= amount;
         currentHP = Mathf.Max(currentHP, 0);
 
-        Debug.Log($"{name} took {amount} damage. HP: {currentHP}/{maxHP}");
+        Debug.Log($"{name} took {amount} damage. HP: {currentHP}/{MaxHP}");
 
         if (currentHP <= 0)
             Die();
@@ -244,7 +284,7 @@ public class GridUnit : MonoBehaviour
         int distance = Mathf.Abs(CurrentTile.X - target.CurrentTile.X) +
                        Mathf.Abs(CurrentTile.Y - target.CurrentTile.Y);
 
-        return distance <= attackRange;
+        return distance <= AttackRange;
     }
     
     public bool CanAttack(GridUnit target)
@@ -261,16 +301,24 @@ public class GridUnit : MonoBehaviour
         return IsTargetInRange(target);
     }
 
-    public void Attack(GridUnit target)
+    public bool TryAttack(GridUnit target)
     {
+        if (!CanAttackThisTurn())
+            return false;
+
         if (!CanAttack(target))
-            return;
-        
+            return false;
+
         FaceTarget(target);
         ShowAttackEffect(target);
-        
-        Debug.Log($"{name} attacks {target.name} for {attackDamage} damage.");
-        target.TakeDamage(attackDamage);
+
+        int finalDamage = Mathf.Max(1, AttackDamage - target.Defense);
+
+        Debug.Log($"{name} attacks {target.name} for {finalDamage} damage.");
+        target.TakeDamage(finalDamage);
+
+        MarkAttackedThisTurn();
+        return true;
     }
     
     public bool CanMoveThisTurn()
@@ -393,5 +441,16 @@ public class GridUnit : MonoBehaviour
 
         if (effectInstance != null)
             Destroy(effectInstance);
+    }
+    public void InitializeFromData(UnitData data)
+    {
+        if (data == null)
+        {
+            Debug.LogError($"GridUnit on {gameObject.name} received null UnitData.");
+            return;
+        }
+
+        unitData = data;
+        currentHP = MaxHP;
     }
 }

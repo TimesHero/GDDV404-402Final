@@ -11,6 +11,7 @@ public class TurnManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI turnText;
+    [SerializeField] private TextMeshProUGUI playerHintText;
     
     [Header("Battle References")]
     [SerializeField] private UnitSpawner playerSpawner;
@@ -71,11 +72,28 @@ public class TurnManager : MonoBehaviour
     {
         return CurrentTurn == TurnState.Busy;
     }
+    
+    public void ShowPlayerHint(string message)
+    {
+        if (playerHintText == null)
+            return;
+
+        playerHintText.text = message;
+    }
+
+    public void ClearPlayerHint()
+    {
+        if (playerHintText == null)
+            return;
+
+        playerHintText.text = string.Empty;
+    }
 
     public void SetBusy()
     {
         CurrentTurn = TurnState.Busy;
         RefreshTurnUI();
+        ClearPlayerHint();
         Debug.Log("Turn State: Busy");
     }
 
@@ -83,6 +101,7 @@ public class TurnManager : MonoBehaviour
     {
         CurrentTurn = TurnState.PlayerTurn;
         RefreshTurnUI();
+        ClearPlayerHint();
 
         GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
 
@@ -108,6 +127,7 @@ public class TurnManager : MonoBehaviour
         
         CurrentTurn = TurnState.EnemyTurn;
         RefreshTurnUI();
+        ClearPlayerHint();
 
         GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
 
@@ -139,63 +159,98 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(enemyTurnDelay);
 
-        GridUnit player = playerSpawner != null ? playerSpawner.SpawnedUnit : null;
-        GridUnit enemy = enemySpawner != null ? enemySpawner.SpawnedEnemy : null;
+        GridUnit[] enemies = GetLivingEnemies();
 
-        Debug.Log($"Player found: {player != null}");
-        Debug.Log($"Enemy found: {enemy != null}");
-
-        if (player == null || enemy == null)
+        if (enemies == null || enemies.Length == 0)
         {
-            Debug.LogWarning("Missing player or enemy. Returning to player turn.");
+            Debug.LogWarning("No living enemies found. Returning to player turn.");
             StartPlayerTurn();
             yield break;
         }
 
-        EnemyController controller = enemy.GetComponent<EnemyController>();
-        Debug.Log($"EnemyController found: {controller != null}");
-
-        if (controller == null)
+        foreach (GridUnit enemy in enemies)
         {
-            Debug.LogWarning("Enemy has no EnemyController. Returning to player turn.");
-            StartPlayerTurn();
-            yield break;
-        }
+            if (enemy == null || enemy.IsDead)
+                continue;
 
-        bool acted = controller.TryAct(player);
-        Debug.Log($"Enemy TryAct result: {acted}");
+            GridUnit playerTarget = GetFirstLivingPlayer();
 
-        if (!acted)
-        {
+            if (playerTarget == null)
+            {
+                Debug.LogWarning("No living player targets found. Returning to player turn.");
+                StartPlayerTurn();
+                yield break;
+            }
+
+            EnemyController controller = enemy.GetComponent<EnemyController>();
+
+            if (controller == null)
+            {
+                Debug.LogWarning($"{enemy.name} has no EnemyController. Skipping.");
+                continue;
+            }
+
+            bool acted = controller.TryAct(playerTarget);
+            Debug.Log($"{enemy.name} TryAct result: {acted}");
+
+            if (!acted)
+            {
+                yield return new WaitForSeconds(0.2f);
+                continue;
+            }
+
+            if (!controller.LastActionWasMovement)
+            {
+                yield return new WaitForSeconds(0.4f);
+                continue;
+            }
+
+            bool finished = false;
+
+            void OnFinished(GridUnit u)
+            {
+                Debug.Log($"{enemy.name} movement finished event received.");
+                finished = true;
+            }
+
+            enemy.OnMovementFinished += OnFinished;
+
+            while (!finished)
+                yield return null;
+
+            enemy.OnMovementFinished -= OnFinished;
+
             yield return new WaitForSeconds(0.25f);
-            StartPlayerTurn();
-            yield break;
-        }
-        
-        if (!controller.LastActionWasMovement)
-        {
-            yield return new WaitForSeconds(0.4f);
-            StartPlayerTurn();
-            yield break;
         }
 
-        bool finished = false;
-
-        void OnFinished(GridUnit u)
-        {
-            Debug.Log("Enemy movement finished event received.");
-            finished = true;
-        }
-
-        enemy.OnMovementFinished += OnFinished;
-
-        while (!finished)
-            yield return null;
-
-        enemy.OnMovementFinished -= OnFinished;
-
-        yield return new WaitForSeconds(0.25f);
         StartPlayerTurn();
+    }
+    
+    private GridUnit GetFirstLivingPlayer()
+    {
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit != null && unit.Team == UnitTeam.Player && !unit.IsDead)
+                return unit;
+        }
+
+        return null;
+    }
+
+    private GridUnit[] GetLivingEnemies()
+    {
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+        System.Collections.Generic.List<GridUnit> livingEnemies = new System.Collections.Generic.List<GridUnit>();
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit != null && unit.Team == UnitTeam.Enemy && !unit.IsDead)
+                livingEnemies.Add(unit);
+        }
+
+        return livingEnemies.ToArray();
     }
 
     private void RefreshTurnUI()
@@ -217,5 +272,42 @@ public class TurnManager : MonoBehaviour
                 turnText.text = "Busy...";
                 break;
         }
+    }
+    public bool AreAllPlayerUnitsDone()
+    {
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit == null || unit.IsDead)
+                continue;
+
+            if (unit.Team != UnitTeam.Player)
+                continue;
+
+            if (unit.CanMoveThisTurn() || unit.CanAttackThisTurn())
+                return false;
+        }
+
+        return true;
+    }
+    
+    public bool AreAllEnemyUnitsDone()
+    {
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit == null || unit.IsDead)
+                continue;
+
+            if (unit.Team != UnitTeam.Enemy)
+                continue;
+
+            if (unit.CanMoveThisTurn() || unit.CanAttackThisTurn())
+                return false;
+        }
+
+        return true;
     }
 }

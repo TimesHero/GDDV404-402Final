@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1091aee3f67d9e0469d075f24eafa54a, type: 3}
-  m_Name: PlayerAttkEffect
+  m_Name: EnemyAttackEffect
   m_EditorClassIdentifier: Assembly-CSharp::AttackEffectData
-  effectPrefab: {fileID: 0}
-  positionOffset: {x: 0, y: 1, z: 0}
-  effectScale: {x: 1, y: 1, z: 1}
-  duration: 0.25
+  effectPrefab: {fileID: 4603419851718164836, guid: 255ad9a3bdef0df4db2ceb867aa81b4d, type: 3}
+  positionOffset: {x: 0, y: 2, z: 0}
+  effectScale: {x: 2, y: 2, z: 2}
+  duration: 0.5
   popInDuration: 0.1
   riseAmount: 0.25
