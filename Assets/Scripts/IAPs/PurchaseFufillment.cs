@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Extension;
 using UnityEngine.UI;
+using TMPro;
 public class PurchaseFufillment : MonoBehaviour
 {
     public int availableGems;
@@ -16,7 +17,7 @@ public class PurchaseFufillment : MonoBehaviour
 
     public AnalyticsManager analyticsManager;
 
-    public Text gemsCountText;
+    public TMP_Text gemsCountText;
     public Image gemsImage;
 
     //Irrelevant atm
@@ -27,7 +28,7 @@ public class PurchaseFufillment : MonoBehaviour
     public Button UpgradeGemsButton;
 
     //to be displayed when gems = 0
-    public GameObject rewardAdButton;
+    public Button rewardAdButton;
 
     public void Start()
     {
@@ -136,8 +137,12 @@ public class PurchaseFufillment : MonoBehaviour
 
     void RewardAdButtonDisplay()
     {
-        if (availableGems > 0) { rewardAdButton.SetActive(false); }
-        else { rewardAdButton.SetActive(true); }
+        if (rewardAdButton == null)
+        {
+            return;
+        }
+
+        rewardAdButton.interactable = availableGems <= 0;
     }
 
     void InterstitialAdDisplay()

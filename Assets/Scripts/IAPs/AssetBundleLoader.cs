@@ -13,8 +13,8 @@ public class AssetBundleLoader : MonoBehaviour
     //very much spaghetti code but idk how else to do it
     //brain cells fail me
     private const string BUNDLE_NAME_FOR_GEM_UI = "icons/gems";
-    private const string GREEN_GEM_NAME = "GemGreen";
-    private const string RED_GEM_NAME = "GemRed";
+    [SerializeField] private string greenGemAssetName = "1";
+    [SerializeField] private string redGemAssetName = "2";
     public PurchaseFufillment GemManager;
 
     //these two arrays need to line up, allegedly spaghetti code
@@ -62,9 +62,14 @@ public class AssetBundleLoader : MonoBehaviour
             GemManager = FindFirstObjectByType(typeof(PurchaseFufillment)) as PurchaseFufillment;
 
             //loads green gem via spaghetti code
-            yield return StartCoroutine(LoadSpriteFromBundle(bundle, GREEN_GEM_NAME, 1));
+            yield return StartCoroutine(LoadSpriteFromBundle(bundle, greenGemAssetName, 1));
             //loads red gem via spaghetti code
-            yield return StartCoroutine(LoadSpriteFromBundle(bundle, RED_GEM_NAME, 'r'));
+            yield return StartCoroutine(LoadSpriteFromBundle(bundle, redGemAssetName, 'r'));
+
+            if (GemManager != null)
+            {
+                GemManager.UpdateGemsDisplay();
+            }
         }
         
 

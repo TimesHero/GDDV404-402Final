@@ -26,13 +26,26 @@ public class AdInitializer : MonoBehaviour, IUnityAdsInitializationListener
     gameID = androidGameID;
 #elif UNITY_EDITOR
     gameID = androidGameID;
+#else
+        Debug.Log("Unity Ads demo disabled on this platform.");
+        return;
 #endif
+
+        if (string.IsNullOrWhiteSpace(gameID))
+        {
+            Debug.LogWarning("Unity Ads Game ID is empty.");
+            return;
+        }
 
         //if Advertisement class isn't initialized, and is supported, initializes it under our current settings.
         //"this" means that this class will be listening to the events shot out by Advertisement.
         if (!Advertisement.isInitialized && Advertisement.isSupported)
         {
             Advertisement.Initialize(gameID, testMode, this);
+        }
+        else if (!Advertisement.isSupported)
+        {
+            Debug.Log("Unity Ads is not supported on this platform.");
         }
     }
 
