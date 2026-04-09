@@ -41,10 +41,6 @@ public class AnalyticsManager : MonoBehaviour
             GemColor = gemColor
         }); //this setup is called a closer in c#, this ends the operation, closing it.
     }
-    
-    ///
-    ///Assignment 3 Events
-    ///
 
     //activated when the player successfully buys gems
     public void SendBoughtGemsEvent(int gemsBought)

@@ -49,8 +49,7 @@ public class AdInitializer : MonoBehaviour, IUnityAdsInitializationListener
         }
     }
 
-
-    // Awake happens before Start
+    
     void Awake()
     {
         InitializeAds();
