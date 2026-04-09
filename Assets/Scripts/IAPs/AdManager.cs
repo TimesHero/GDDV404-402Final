@@ -30,6 +30,7 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     public float secondsUntilFirstBannerAd = 10f;
     public float secondsUntilHideBannerAd = 10f;
     public float secondsBetweenBannerAds = 50f;
+    private bool adsAvailable;
 
     
 
@@ -40,10 +41,18 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     {
 #if UNITY_IOS
         adUnitAffix = "_iOS";
+        adsAvailable = true;
 #elif UNITY_ANDROID
         adUnitAffix = "_Android";
+        adsAvailable = true;
 #elif UNITY_EDITOR
         adUnitAffix = "_Android";
+        adsAvailable = true;
+#else
+        adsAvailable = false;
+        Debug.Log("Unity Ads demo disabled on this platform.");
+        enabled = false;
+        return;
 #endif
         //ads are not loaded yet!!
     }
@@ -53,6 +62,12 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     /// </summary>
     public void LoadAd(string adUnitPrefix)
     {
+        if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
+        {
+            Debug.LogWarning("Unity Ads is unavailable or not initialized.");
+            return;
+        }
+
         string adUnitID = adUnitPrefix + adUnitAffix;
         adToShow = adUnitID;
         Advertisement.Load(adUnitID, this);
@@ -76,6 +91,12 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     /// </summary>
     public void ShowAd(string adUnitPrefix)
     {
+        if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
+        {
+            Debug.LogWarning("Unity Ads is unavailable or not initialized.");
+            return;
+        }
+
         string adUnitID = adUnitPrefix + adUnitAffix;
         Advertisement.Show(adUnitID, this);
     }
@@ -99,10 +120,10 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     {
         adCompleted = showCompletionState == UnityAdsShowCompletionState.COMPLETED;
         Debug.Log($"{placementId} completed. - {showCompletionState}");
-        AdCompleted();
+        AdCompleted(placementId);
 
         //Sends an event to the unity dashboard
-        analyticsManager.SendAdViewedEvent(adTypeToShow);
+        analyticsManager.SendAdViewedEvent(GetAdTypeFromPlacementId(placementId));
     }
 
     /////
@@ -134,10 +155,12 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     }
 
     //3. Handle collection of gems for successful ad.
-    public void AdCompleted()
+    public void AdCompleted(string placementId)
     {
+        string completedAdType = GetAdTypeFromPlacementId(placementId);
+
         //check if reward should be rewarded
-        if (adTypeToShow == REWARDED_AD_PREFIX)
+        if (completedAdType == REWARDED_AD_PREFIX)
         {
             if (adCompleted)
             {
@@ -152,7 +175,7 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         }
         else
         {
-            Debug.Log($"{adToShow} is not a rewarded ad.");
+            Debug.Log($"{placementId} is not a rewarded ad.");
         }
     }
     ////////////////
@@ -165,6 +188,12 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     //1. Load a Banner Ad.
     public void PrepareBannerAd()
     {
+        if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
+        {
+            Debug.LogWarning("Banner ad skipped because Unity Ads is unavailable.");
+            return;
+        }
+
         // Set up options to notify the SDK of load events:
         BannerLoadOptions options = new BannerLoadOptions
         {
@@ -217,12 +246,22 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     //2. Hide a Banner Ad.
     void HideBannerAd()
     {
+        if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
+        {
+            return;
+        }
+
         Advertisement.Banner.Hide();
     }
 
     //3. Set up a global timer to load and unload Banner Ads.
     public void Start()
     {
+        if (!adsAvailable)
+        {
+            return;
+        }
+
         // Set the banner position:
         Advertisement.Banner.SetPosition(_bannerPosition);
 
@@ -253,6 +292,26 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         }
 
         yield return null;
+    }
+
+    private string GetAdTypeFromPlacementId(string placementId)
+    {
+        if (placementId.StartsWith(REWARDED_AD_PREFIX))
+        {
+            return REWARDED_AD_PREFIX;
+        }
+
+        if (placementId.StartsWith(INTERSTITIAL_AD_PREFIX))
+        {
+            return INTERSTITIAL_AD_PREFIX;
+        }
+
+        if (placementId.StartsWith(BANNER_AD_PREFIX))
+        {
+            return BANNER_AD_PREFIX;
+        }
+
+        return placementId;
     }
 
 

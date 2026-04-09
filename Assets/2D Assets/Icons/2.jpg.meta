@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 722d2be1fc1b7144ca0e47ab8b47c012
+guid: 3dd49e6db3694064ebbb7121b6969928
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -139,5 +139,5 @@ TextureImporter:
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
-  assetBundleName: 
+  assetBundleName: icons/gems
   assetBundleVariant: 
