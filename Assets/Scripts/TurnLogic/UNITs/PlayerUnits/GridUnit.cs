@@ -273,9 +273,8 @@ public class GridUnit : MonoBehaviour
 
         if (BattleStateManager.Instance != null)
             BattleStateManager.Instance.NotifyUnitDied(this);
-
-        Destroy(gameObject);
     }
+    
     public bool IsTargetInRange(GridUnit target)
     {
         if (target == null || target.CurrentTile == null || CurrentTile == null)
@@ -452,5 +451,36 @@ public class GridUnit : MonoBehaviour
 
         unitData = data;
         currentHP = MaxHP;
+    }
+    public void RestoreTurnState(bool moved, bool attacked)
+    {
+        hasMovedThisTurn = moved;
+        hasAttackedThisTurn = attacked;
+    }
+
+    public void RestoreHealth(int hp)
+    {
+        currentHP = Mathf.Clamp(hp, 0, MaxHP);
+    }
+
+    public void RestoreAliveState(bool shouldBeDead)
+    {
+        gameObject.SetActive(!shouldBeDead);
+    }
+    
+    public Quaternion GetVisualRotation()
+    {
+        if (visualRoot != null)
+            return visualRoot.rotation;
+
+        return transform.rotation;
+    }
+
+    public void RestoreVisualRotation(Quaternion rotation)
+    {
+        if (visualRoot != null)
+            visualRoot.rotation = rotation;
+        else
+            transform.rotation = rotation;
     }
 }

@@ -2,9 +2,30 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
+using UnityEngine.UI;
 
 public class TurnManager : MonoBehaviour
 {
+    [Header("Restart Turn")]
+    [SerializeField] private int maxRestartTurnUses = 1;
+
+    private int remainingRestartTurnUses;
+    private System.Collections.Generic.List<UnitTurnSnapshot> playerTurnSnapshots = new System.Collections.Generic.List<UnitTurnSnapshot>();
+    
+    [Header("Enemy Turn Speed")]
+    [SerializeField] private EnemyTurnSpeedMode enemyTurnSpeedMode = EnemyTurnSpeedMode.Normal;
+
+    [SerializeField, Range(0.05f, 1f)] private float fastDelayMultiplier = 0.5f;
+    [SerializeField, Range(0.05f, 1f)] private float superFastDelayMultiplier = 0.2f;
+    
+    [Header("Enemy Turn Speed UI")]
+    [SerializeField] private Image enemySpeedButtonImage;
+    [SerializeField] private TMP_Text enemySpeedButtonText;
+
+    [SerializeField] private Sprite normalSpeedSprite;
+    [SerializeField] private Sprite fastSpeedSprite;
+    [SerializeField] private Sprite superFastSpeedSprite;
+    
     public static TurnManager Instance { get; private set; }
     
     [SerializeField] private TileSelector tileSelector;
@@ -12,6 +33,11 @@ public class TurnManager : MonoBehaviour
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI turnText;
     [SerializeField] private TextMeshProUGUI playerHintText;
+    
+    [Header("Turn Options")]
+    [SerializeField] private bool autoEndTurnEnabled = false;
+
+    public bool AutoEndTurnEnabled => autoEndTurnEnabled;
     
     [Header("Battle References")]
     [SerializeField] private UnitSpawner playerSpawner;
@@ -21,6 +47,9 @@ public class TurnManager : MonoBehaviour
     private InputSystem_Actions inputActions;
 
     public TurnState CurrentTurn { get; private set; } = TurnState.PlayerTurn;
+    
+    public int RemainingRestartTurnUses => remainingRestartTurnUses;
+    public int MaxRestartTurnUses => maxRestartTurnUses;
 
     private void Awake()
     {
@@ -34,6 +63,141 @@ public class TurnManager : MonoBehaviour
         inputActions = new InputSystem_Actions();
         CurrentTurn = TurnState.PlayerTurn;
         RefreshTurnUI();
+        RefreshEnemyTurnSpeedUI();
+        remainingRestartTurnUses = maxRestartTurnUses;
+    }
+    
+    private void Start()
+    {
+        CapturePlayerTurnSnapshot();
+    }
+    
+    public void CycleEnemyTurnSpeedMode()
+    {
+        switch (enemyTurnSpeedMode)
+        {
+            case EnemyTurnSpeedMode.Normal:
+                enemyTurnSpeedMode = EnemyTurnSpeedMode.Fast;
+                break;
+
+            case EnemyTurnSpeedMode.Fast:
+                enemyTurnSpeedMode = EnemyTurnSpeedMode.SuperFast;
+                break;
+
+            case EnemyTurnSpeedMode.SuperFast:
+                enemyTurnSpeedMode = EnemyTurnSpeedMode.Normal;
+                break;
+        }
+
+        Debug.Log($"Enemy Turn Speed Mode changed to: {enemyTurnSpeedMode}");
+        RefreshEnemyTurnSpeedUI();
+    }
+    
+    private float GetEnemyDelayMultiplier()
+    {
+        switch (enemyTurnSpeedMode)
+        {
+            case EnemyTurnSpeedMode.Fast:
+                return fastDelayMultiplier;
+
+            case EnemyTurnSpeedMode.SuperFast:
+                return superFastDelayMultiplier;
+
+            case EnemyTurnSpeedMode.Normal:
+            default:
+                return 1f;
+        }
+    }
+    
+    private float GetEnemyDelay(float normalDelay)
+    {
+        return normalDelay * GetEnemyDelayMultiplier();
+    }
+    
+    private void RefreshEnemyTurnSpeedUI()
+    {
+        bool hasAllSprites =
+            normalSpeedSprite != null &&
+            fastSpeedSprite != null &&
+            superFastSpeedSprite != null;
+
+        if (enemySpeedButtonImage != null)
+        {
+            if (hasAllSprites)
+            {
+                switch (enemyTurnSpeedMode)
+                {
+                    case EnemyTurnSpeedMode.Normal:
+                        enemySpeedButtonImage.sprite = normalSpeedSprite;
+                        break;
+
+                    case EnemyTurnSpeedMode.Fast:
+                        enemySpeedButtonImage.sprite = fastSpeedSprite;
+                        break;
+
+                    case EnemyTurnSpeedMode.SuperFast:
+                        enemySpeedButtonImage.sprite = superFastSpeedSprite;
+                        break;
+                }
+
+                enemySpeedButtonImage.enabled = true;
+            }
+            else
+            {
+                enemySpeedButtonImage.enabled = false;
+            }
+        }
+
+        if (enemySpeedButtonText != null)
+        {
+            if (hasAllSprites)
+            {
+                enemySpeedButtonText.text = string.Empty;
+            }
+            else
+            {
+                switch (enemyTurnSpeedMode)
+                {
+                    case EnemyTurnSpeedMode.Normal:
+                        enemySpeedButtonText.text = "Normal";
+                        break;
+
+                    case EnemyTurnSpeedMode.Fast:
+                        enemySpeedButtonText.text = "Fast";
+                        break;
+
+                    case EnemyTurnSpeedMode.SuperFast:
+                        enemySpeedButtonText.text = "Fast as Fuck";
+                        break;
+                }
+            }
+        }
+    }
+    
+    public void SetAutoEndTurn(bool isEnabled)
+    {
+        autoEndTurnEnabled = isEnabled;
+        Debug.Log($"Auto End Turn set to: {autoEndTurnEnabled}");
+    }
+    
+    public void HandlePlayerUnitsDoneState()
+    {
+        if (!AreAllPlayerUnitsDone())
+        {
+            ClearPlayerHint();
+            return;
+        }
+
+        ShowPlayerHint("All player units are done. You can end the turn.");
+
+        if (!autoEndTurnEnabled)
+            return;
+
+        if (!IsPlayerTurn() || IsBusy())
+            return;
+
+        Debug.Log("All player units are done. Auto ending turn.");
+        EndTurn();
     }
 
     private void OnEnable()
@@ -110,14 +274,128 @@ public class TurnManager : MonoBehaviour
             if (unit != null && unit.Team == UnitTeam.Player)
                 unit.ResetTurnState();
         }
-
+        CapturePlayerTurnSnapshot();
         Debug.Log("Turn State: Player Turn");
     }
+    
+    private void CapturePlayerTurnSnapshot()
+    {
+        playerTurnSnapshots.Clear();
+
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit == null)
+                continue;
+
+            GridTile tile = unit.CurrentTile;
+            Vector2Int gridPos = tile != null ? new Vector2Int(tile.X, tile.Y) : Vector2Int.zero;
+
+            UnitTurnSnapshot snapshot = new UnitTurnSnapshot
+            {
+                unit = unit,
+                gridPosition = gridPos,
+                currentHP = unit.CurrentHP,
+                wasDead = unit.IsDead || !unit.gameObject.activeSelf,
+                hasMovedThisTurn = unit.HasMovedThisTurn,
+                hasAttackedThisTurn = unit.HasAttackedThisTurn,
+                visualRotation = unit.GetVisualRotation()
+            };
+
+            playerTurnSnapshots.Add(snapshot);
+        }
+    }
+    
+    public void RestartPlayerTurn()
+    {
+        if (!IsPlayerTurn() || IsBusy())
+        {
+            Debug.Log("Cannot restart turn right now.");
+            return;
+        }
+
+        if (remainingRestartTurnUses <= 0)
+        {
+            Debug.Log("No restart turn uses remaining.");
+            return;
+        }
+
+        if (playerTurnSnapshots == null || playerTurnSnapshots.Count == 0)
+        {
+            Debug.LogWarning("No player turn snapshot available.");
+            return;
+        }
+
+        RestorePlayerTurnSnapshot();
+        remainingRestartTurnUses--;
+        
+        if (BattleStateManager.Instance != null)
+        {
+            BattleStateManager.Instance.ResetBattleState();
+            BattleStateManager.Instance.CheckBattleState();
+        }
+
+        if (tileSelector != null)
+            tileSelector.ForceClearSelectionAndHighlights();
+
+        RefreshTurnUI();
+        ClearPlayerHint();
+
+        Debug.Log($"Player turn restarted. Remaining restart uses: {remainingRestartTurnUses}");
+    }
+    
+    private void RestorePlayerTurnSnapshot()
+    {
+        foreach (UnitTurnSnapshot snapshot in playerTurnSnapshots)
+        {
+            if (snapshot == null || snapshot.unit == null)
+                continue;
+
+            GridUnit unit = snapshot.unit;
+
+            unit.RestoreAliveState(snapshot.wasDead);
+            unit.RestoreHealth(snapshot.currentHP);
+            unit.RestoreTurnState(snapshot.hasMovedThisTurn, snapshot.hasAttackedThisTurn);
+
+            if (!snapshot.wasDead)
+            {
+                GridTile tile = FindTileAt(snapshot.gridPosition);
+                if (tile != null)
+                    unit.PlaceOnTile(tile);
+            }
+            else
+            {
+                if (unit.CurrentTile != null)
+                    unit.CurrentTile.SetOccupant(null);
+            }
+
+            unit.RestoreVisualRotation(snapshot.visualRotation);
+        }
+
+        CurrentTurn = TurnState.PlayerTurn;
+    }
+    
+    private GridTile FindTileAt(Vector2Int gridPosition)
+    {
+        GridTile[] allTiles = FindObjectsByType<GridTile>(FindObjectsSortMode.None);
+
+        foreach (GridTile tile in allTiles)
+        {
+            if (tile != null && tile.X == gridPosition.x && tile.Y == gridPosition.y)
+                return tile;
+        }
+
+        return null;
+    }
+    
     public void ReturnToPlayerControl()
     {
         CurrentTurn = TurnState.PlayerTurn;
         RefreshTurnUI();
         Debug.Log("Turn State: Player Control Restored");
+        
+        HandlePlayerUnitsDoneState();
     }
 
     public void StartEnemyTurn()
@@ -149,6 +427,11 @@ public class TurnManager : MonoBehaviour
         else if (CurrentTurn == TurnState.EnemyTurn)
             StartPlayerTurn();
     }
+    private void OnValidate()
+    {
+        fastDelayMultiplier = Mathf.Clamp(fastDelayMultiplier, 0.05f, 1f);
+        superFastDelayMultiplier = Mathf.Clamp(superFastDelayMultiplier, 0.05f, 1f);
+    }
     
     private IEnumerator RunEnemyTurnRoutine()
     {
@@ -157,7 +440,7 @@ public class TurnManager : MonoBehaviour
         CurrentTurn = TurnState.Busy;
         RefreshTurnUI();
 
-        yield return new WaitForSeconds(enemyTurnDelay);
+        yield return new WaitForSeconds(GetEnemyDelay(enemyTurnDelay));
 
         GridUnit[] enemies = GetLivingEnemies();
 
@@ -195,13 +478,13 @@ public class TurnManager : MonoBehaviour
 
             if (!acted)
             {
-                yield return new WaitForSeconds(0.2f);
+                yield return new WaitForSeconds(GetEnemyDelay(0.2f));
                 continue;
             }
 
             if (!controller.LastActionWasMovement)
             {
-                yield return new WaitForSeconds(0.4f);
+                yield return new WaitForSeconds(GetEnemyDelay(0.4f));
                 continue;
             }
 
@@ -220,7 +503,7 @@ public class TurnManager : MonoBehaviour
 
             enemy.OnMovementFinished -= OnFinished;
 
-            yield return new WaitForSeconds(0.25f);
+            yield return new WaitForSeconds(GetEnemyDelay(0.25f));
         }
 
         StartPlayerTurn();

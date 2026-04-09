@@ -101,4 +101,17 @@ public class BattleStateManager : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
+    
+    public void ResetBattleState()
+    {
+        battleEnded = false;
+
+        if (resultText != null)
+            resultText.text = "";
+
+        if (restartButton != null)
+            restartButton.gameObject.SetActive(false);
+
+        Debug.Log("Battle state reset.");
+    }
 }
