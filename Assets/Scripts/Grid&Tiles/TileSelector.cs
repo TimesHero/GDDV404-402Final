@@ -257,10 +257,7 @@ public class TileSelector : MonoBehaviour
         if (TurnManager.Instance == null)
             return;
 
-        if (TurnManager.Instance.AreAllPlayerUnitsDone())
-            TurnManager.Instance.ShowPlayerHint("All player units are done. You can end the turn.");
-        else
-            TurnManager.Instance.ClearPlayerHint();
+        TurnManager.Instance.HandlePlayerUnitsDoneState();
     }
     
     private void SelectUnit(GridUnit unit)
