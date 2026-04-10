@@ -6,10 +6,10 @@ using TMPro;
 public class PurchaseFufillment : MonoBehaviour
 {
     public int availableGems;
-    public int spentGems;
+    public int spentGems; //updates as gems are spent
     public bool redGems = false;
 
-    private const string GEMS_1 = "Buy1Gem";
+    private const string GEMS_1 = "Buy1Gem"; //this ideally would be loaded from a .json file for easy editing in the future.
     private const string GEMS_10 = "Buy10Gems";
     private const string RED_GEMS = "UpgradeToRedGems";
 
@@ -20,11 +20,14 @@ public class PurchaseFufillment : MonoBehaviour
     public TMP_Text gemsCountText;
     public Image gemsImage;
 
+    //Irrelevant atm
     public Sprite greenGemSprite;
     public Sprite redGemSprite;
 
+    //to be disabled after purchasing red gems
     public Button UpgradeGemsButton;
 
+    //to be displayed when gems = 0
     public Button rewardAdButton;
 
     public void Start()
@@ -38,6 +41,7 @@ public class PurchaseFufillment : MonoBehaviour
     {
         var purchaseProductInfo = confirmedOrder.Info.PurchasedProductInfo;
 
+        //this is new, study this!!
         foreach (IPurchasedProductInfo info in purchaseProductInfo)
         {
             switch (info.productId)
@@ -53,7 +57,11 @@ public class PurchaseFufillment : MonoBehaviour
                     break;
             }
         }
+
     }
+
+    
+
 
     public void OnFailedOrder(FailedOrder failedOrder)
     {
@@ -77,11 +85,14 @@ public class PurchaseFufillment : MonoBehaviour
         Debug.Log($"You purchased {gemAmount} gems!");
         Debug.Log("Total Gems: " + availableGems);
         UpdateGemsDisplay();
+
+        //Sends an event to the unity dashboard
         analyticsManager.SendBoughtGemsEvent(gemAmount);
     }
 
     public void UpgradeGems()
     {
+        //Script for upgrading gems goes here
         redGems = true;
         Debug.Log($"You purchased Red Gems!");
         Debug.Log($"Thank you for upgrading!");
@@ -90,8 +101,10 @@ public class PurchaseFufillment : MonoBehaviour
 
     public void UpdateGemsDisplay()
     {
+        //Update Gem Count.
         gemsCountText.text = $"{availableGems}";
 
+        //Check if Gems are red.
         if (redGems)
         {
             gemsImage.sprite = redGemSprite;
@@ -138,6 +151,7 @@ public class PurchaseFufillment : MonoBehaviour
         {
             spentGems = 0;
 
+            //load and show an interstitial ad
             AdManager AM = FindAnyObjectByType<AdManager>();
             if (AM != null) { AM.PrepareInterstitialAd(); }
         }

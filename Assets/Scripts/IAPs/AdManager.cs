@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Advertisements;
@@ -6,6 +7,9 @@ using UnityEngine.UI;
 
 public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowListener
 {
+    //Script handles showing ads to the player.
+    //An ad must be loaded before it can be shown
+
     private string adUnitAffix;
 
     private int currentGemReward = 0;
@@ -28,6 +32,11 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     public float secondsBetweenBannerAds = 50f;
     private bool adsAvailable;
 
+    
+
+    //Pre Processor Instructions, in order to ensure the correct gameID is being used.
+    //These are macros, telling the compiler which instruction to use.
+    //Pre Processor saves time and space in the compiled build of our game.
     private void Awake()
     {
 #if UNITY_IOS
@@ -45,7 +54,12 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         enabled = false;
         return;
 #endif
+        //ads are not loaded yet!!
     }
+
+    /// <summary>
+    /// Loading Ads
+    /// </summary>
     public void LoadAd(string adUnitPrefix)
     {
         if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
@@ -59,16 +73,22 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         Advertisement.Load(adUnitID, this);
     }
 
+    //Interface from IUnityAdsLoadListener
     public void OnUnityAdsAdLoaded(string placementId)
     {
         Debug.Log($"{placementId} loaded successfully");
         AdLoaded();
     }
 
+    //Interface from IUnityAdsLoadListener
     public void OnUnityAdsFailedToLoad(string placementId, UnityAdsLoadError error, string message)
     {
         Debug.LogWarning($"{placementId} failed to load: {error} - {message}");
     }
+
+    /// <summary>
+    /// Showing Ads
+    /// </summary>
     public void ShowAd(string adUnitPrefix)
     {
         if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
@@ -101,9 +121,17 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         adCompleted = showCompletionState == UnityAdsShowCompletionState.COMPLETED;
         Debug.Log($"{placementId} completed. - {showCompletionState}");
         AdCompleted(placementId);
+
+        //Sends an event to the unity dashboard
         analyticsManager.SendAdViewedEvent(GetAdTypeFromPlacementId(placementId));
     }
 
+    /////
+    //Reward and Interstitial Ads
+    /////
+    ///
+
+    //1. Load Reward Ad.
     public void PrepareRewardAd(int gemReward)
     {
         adTypeToShow = REWARDED_AD_PREFIX;
@@ -118,19 +146,25 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         currentGemReward = 0;
     }
 
+    //2. After Reward Ad is loaded, display reward ad.
     public void AdLoaded()
     {
+        //After an ad is loaded, show it.
         ShowAd(adTypeToShow);
+
     }
 
+    //3. Handle collection of gems for successful ad.
     public void AdCompleted(string placementId)
     {
         string completedAdType = GetAdTypeFromPlacementId(placementId);
 
+        //check if reward should be rewarded
         if (completedAdType == REWARDED_AD_PREFIX)
         {
             if (adCompleted)
             {
+                //grant gems
                 PurchaseFufillment fufillment = FindAnyObjectByType<PurchaseFufillment>();
                 fufillment.GrantGems(currentGemReward);
             }
@@ -144,6 +178,14 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
             Debug.Log($"{placementId} is not a rewarded ad.");
         }
     }
+    ////////////////
+    ///
+
+    ///
+    /// Banner Ads
+    /// 
+
+    //1. Load a Banner Ad.
     public void PrepareBannerAd()
     {
         if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
@@ -152,30 +194,41 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
             return;
         }
 
+        // Set up options to notify the SDK of load events:
         BannerLoadOptions options = new BannerLoadOptions
         {
             loadCallback = OnBannerLoaded,
             errorCallback = OnBannerError
         };
 
+        // mainly for recording what ad was watched.
         adTypeToShow = BANNER_AD_PREFIX;
 
+        // Load the Ad Unit with banner content:
         Advertisement.Banner.Load(adUnitAffix, options);
     }
 
+    //Occurs when the loadCallback event triggers:
     void OnBannerLoaded()
     {
         Debug.Log("Banner loaded");
+
+        //now show da thing
         ShowBannerAd();
+
     }
 
+    //Occurs when when the load errorCallback event triggers:
     void OnBannerError(string message)
     {
         Debug.Log($"Banner Load Error: {message}");
+        // Optionally execute additional code, such as attempting to load another ad.
     }
 
+    //Shows the loaded banner ad
     void ShowBannerAd()
     {
+        //Set up options to notify the script(SDK) of show events
         BannerOptions options = new BannerOptions
         {
             clickCallback = OnBannerClicked,
@@ -183,12 +236,14 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
             showCallback = OnBannerShown
         };
 
+        //Show the loaded Banner Ad Unit
         Advertisement.Banner.Show(adUnitAffix, options);
     }
     void OnBannerClicked() { Debug.Log($"Banner Clicked"); }
     void OnBannerShown() { Debug.Log($"Banner Shown"); bannerAdShown = true; }
     void OnBannerHidden() { Debug.Log($"Banner Hidden"); }
 
+    //2. Hide a Banner Ad.
     void HideBannerAd()
     {
         if (!adsAvailable || !Advertisement.isSupported || !Advertisement.isInitialized)
@@ -199,6 +254,7 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         Advertisement.Banner.Hide();
     }
 
+    //3. Set up a global timer to load and unload Banner Ads.
     public void Start()
     {
         if (!adsAvailable)
@@ -206,24 +262,31 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
             return;
         }
 
+        // Set the banner position:
         Advertisement.Banner.SetPosition(_bannerPosition);
 
         StartCoroutine(BannerAdsCycle());
 
+        //also sets the analytics manager
         if (analyticsManager == null) { analyticsManager = FindAnyObjectByType<AnalyticsManager>(); }
     }
 
     private IEnumerator BannerAdsCycle()
     {
+        //initial wait
         if (!bannerAdShown) yield return new WaitForSeconds(secondsUntilFirstBannerAd);
 
+        //show banner ad
         PrepareBannerAd();
 
+        //wait after showing ad
         if (cycleBannerAds)
         {
+            //hiding the ad
             yield return new WaitForSeconds(secondsUntilHideBannerAd);
             HideBannerAd();
 
+            //wait for new ad
             yield return new WaitForSeconds(secondsBetweenBannerAds);
             StartCoroutine(BannerAdsCycle());
         }
@@ -250,5 +313,6 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
 
         return placementId;
     }
+
 
 }
