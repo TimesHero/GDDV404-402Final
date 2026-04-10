@@ -17,6 +17,8 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
     private const string REWARDED_AD_PREFIX = "Rewarded";
     private const string BANNER_AD_PREFIX = "Banner";
 
+    public AnalyticsManager analyticsManager;
+
     [Header("Banner Ads")]
     [SerializeField] BannerPosition _bannerPosition = BannerPosition.BOTTOM_CENTER;
     private bool bannerAdShown = false;
@@ -99,6 +101,7 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         adCompleted = showCompletionState == UnityAdsShowCompletionState.COMPLETED;
         Debug.Log($"{placementId} completed. - {showCompletionState}");
         AdCompleted(placementId);
+        analyticsManager.SendAdViewedEvent(GetAdTypeFromPlacementId(placementId));
     }
 
     public void PrepareRewardAd(int gemReward)
@@ -206,6 +209,8 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         Advertisement.Banner.SetPosition(_bannerPosition);
 
         StartCoroutine(BannerAdsCycle());
+
+        if (analyticsManager == null) { analyticsManager = FindAnyObjectByType<AnalyticsManager>(); }
     }
 
     private IEnumerator BannerAdsCycle()

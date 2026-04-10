@@ -1044,6 +1044,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 704382652}
+  - component: {fileID: 704382649}
   - component: {fileID: 704382651}
   - component: {fileID: 704382650}
   m_Layer: 0
@@ -1053,6 +1054,18 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &704382649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 704382648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e93d212f445d2014b9ac9bbf4375dc78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AnalyticsManager
 --- !u!114 &704382650
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1065,6 +1078,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e8eaecea616c614eb048877ed599605, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AdManager
+  analyticsManager: {fileID: 704382649}
   _bannerPosition: 4
   cycleBannerAds: 1
   secondsUntilFirstBannerAd: 10
@@ -1636,6 +1650,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae029384c333f09439d4b354f0de422d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConsentGateController
+  analyticsManager: {fileID: 704382649}
   consentPanel: {fileID: 189770226}
   gatedObjects:
   - {fileID: 1617469542}
@@ -1917,6 +1932,7 @@ MonoBehaviour:
   spentGems: 0
   redGems: 0
   gemsSpentUntilAd: 50
+  analyticsManager: {fileID: 704382649}
   gemsCountText: {fileID: 1195891923}
   gemsImage: {fileID: 491706947}
   greenGemSprite: {fileID: 21300000, guid: 3dd49e6db3694064ebbb7121b6969928, type: 3}
@@ -4151,6 +4167,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
+      - m_Target: {fileID: 704382649}
+        m_TargetAssemblyTypeName: AnalyticsManager, Assembly-CSharp
+        m_MethodName: DenyConsent
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
       - m_Target: {fileID: 988349334}
         m_TargetAssemblyTypeName: ConsentGateController, Assembly-CSharp
         m_MethodName: DenyConsent
@@ -4837,6 +4865,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
+      - m_Target: {fileID: 704382649}
+        m_TargetAssemblyTypeName: AnalyticsManager, Assembly-CSharp
+        m_MethodName: GrantConsent
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
       - m_Target: {fileID: 988349334}
         m_TargetAssemblyTypeName: ConsentGateController, Assembly-CSharp
         m_MethodName: GrantConsent
