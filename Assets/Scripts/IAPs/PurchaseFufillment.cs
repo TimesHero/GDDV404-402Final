@@ -13,8 +13,6 @@ public class PurchaseFufillment : MonoBehaviour
     private const string GEMS_10 = "Buy10Gems";
     private const string RED_GEMS = "UpgradeToRedGems";
 
-    public int gemsSpentUntilAd = 50;
-
     public TMP_Text gemsCountText;
     public Image gemsImage;
 
@@ -22,8 +20,6 @@ public class PurchaseFufillment : MonoBehaviour
     public Sprite redGemSprite;
 
     public Button UpgradeGemsButton;
-
-    public Button rewardAdButton;
 
     public void Start()
     {
@@ -105,36 +101,7 @@ public class PurchaseFufillment : MonoBehaviour
         else
         {
             availableGems -= gemsToSpend;
-            spentGems += gemsToSpend;
         }
         UpdateGemsDisplay();
-    }
-
-    private void Update()
-    {
-        RewardAdButtonDisplay();
-
-        InterstitialAdDisplay();
-    }
-
-    void RewardAdButtonDisplay()
-    {
-        if (rewardAdButton == null)
-        {
-            return;
-        }
-
-        rewardAdButton.interactable = availableGems <= 0;
-    }
-
-    void InterstitialAdDisplay()
-    {
-        if (spentGems >= gemsSpentUntilAd)
-        {
-            spentGems = 0;
-
-            AdManager AM = FindAnyObjectByType<AdManager>();
-            if (AM != null) { AM.PrepareInterstitialAd(); }
-        }
     }
 }
