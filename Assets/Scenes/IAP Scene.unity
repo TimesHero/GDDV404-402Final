@@ -1341,7 +1341,7 @@ MonoBehaviour:
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 3
+          m_IntArgument: 5
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
@@ -2594,7 +2594,7 @@ MonoBehaviour:
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 5
+          m_IntArgument: 10
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
@@ -3394,7 +3394,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Watch Ad \n"
+  m_text: 'Watch Ad
+
+'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4a82c7a06858c9c4d9c27a43ab2263ca, type: 2}
   m_sharedMaterial: {fileID: 9196641756160278085, guid: 4a82c7a06858c9c4d9c27a43ab2263ca, type: 2}
