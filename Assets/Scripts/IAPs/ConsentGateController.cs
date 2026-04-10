@@ -1,6 +1,4 @@
-using Unity.Services.Analytics;
 using UnityEngine;
-using UnityEngine.UnityConsent;
 using UnityEngine.SceneManagement;
 
 public class ConsentGateController : MonoBehaviour
@@ -9,31 +7,23 @@ public class ConsentGateController : MonoBehaviour
     private const int ConsentUnset = -1;
     private const int ConsentGranted = 1;
 
-    [SerializeField] private AnalyticsManager analyticsManager;
     [SerializeField] private GameObject consentPanel;
     [SerializeField] private GameObject[] gatedObjects;
     [SerializeField] private string deniedSceneName = string.Empty;
-
+    
     private void Start()
     {
-        if (analyticsManager == null)
-        {
-            analyticsManager = FindAnyObjectByType<AnalyticsManager>();
-        }
-
         ApplySavedConsentState();
     }
 
     public void GrantConsent()
     {
         SaveConsentState(ConsentGranted);
-        analyticsManager?.GrantConsent();
         ShowStoreContent();
     }
 
     public void DenyConsent()
     {
-        analyticsManager?.DenyConsent();
         HideStoreContent();
 
         if (!string.IsNullOrWhiteSpace(deniedSceneName))
@@ -54,7 +44,6 @@ public class ConsentGateController : MonoBehaviour
         int savedState = PlayerPrefs.GetInt(ConsentStateKey, ConsentUnset);
         if (savedState == ConsentGranted)
         {
-            analyticsManager?.GrantConsent();
             ShowStoreContent();
             return;
         }

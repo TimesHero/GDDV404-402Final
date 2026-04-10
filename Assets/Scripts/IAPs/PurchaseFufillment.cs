@@ -15,8 +15,6 @@ public class PurchaseFufillment : MonoBehaviour
 
     public int gemsSpentUntilAd = 50;
 
-    public AnalyticsManager analyticsManager;
-
     public TMP_Text gemsCountText;
     public Image gemsImage;
 
@@ -30,8 +28,6 @@ public class PurchaseFufillment : MonoBehaviour
     public void Start()
     {
         UpdateGemsDisplay();
-
-        if (analyticsManager == null) { analyticsManager = FindAnyObjectByType<AnalyticsManager>(); }
     }
 
     public void OnConfirmedOrder(ConfirmedOrder confirmedOrder)
@@ -77,7 +73,6 @@ public class PurchaseFufillment : MonoBehaviour
         Debug.Log($"You purchased {gemAmount} gems!");
         Debug.Log("Total Gems: " + availableGems);
         UpdateGemsDisplay();
-        analyticsManager.SendBoughtGemsEvent(gemAmount);
     }
 
     public void UpgradeGems()
