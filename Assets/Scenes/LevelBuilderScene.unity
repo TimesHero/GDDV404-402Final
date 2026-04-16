@@ -1096,7 +1096,7 @@ MonoBehaviour:
   currentToolMode: 1
   selectedTerrainType: 0
   selectedObstacleData: {fileID: 11400000, guid: 881089dec3bdcf94ba0a713c86714182, type: 2}
-  selectedUnitData: {fileID: 11400000, guid: 00379e6b9c8398746a21784ffc27804c, type: 2}
+  selectedUnitData: {fileID: 11400000, guid: 520b7988f0cd5f3429035677ee655816, type: 2}
   selectedElevationValue: 2
 --- !u!4 &2025446429
 Transform:
