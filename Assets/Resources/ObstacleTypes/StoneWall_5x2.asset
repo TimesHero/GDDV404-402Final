@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96c305c8f68f8ab4396d74781d55a4cc, type: 3}
+  m_Name: StoneWall_5x2
+  m_EditorClassIdentifier: Assembly-CSharp::ObstacleData
+  obstacleId: Obstacle
+  obstaclePrefab: {fileID: 919132149155446097, guid: 8c827cebfdc61a94daf7e83fb351861c, type: 3}
+  visualOffset: {x: 0.7, y: 0, z: -0.5}
+  visualRotationEuler: {x: 0, y: 0, z: 0}
+  visualScale: {x: 1, y: 1, z: 1}
+  blocksMovement: 1
+  footprintSize: {x: 4, y: 2}
+  paintTerrainUnderObstacle: 1
+  terrainTypeUnderObstacle: 1
