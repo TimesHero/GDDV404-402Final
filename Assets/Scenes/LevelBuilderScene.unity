@@ -1097,7 +1097,7 @@ MonoBehaviour:
   selectedTerrainType: 0
   selectedObstacleData: {fileID: 11400000, guid: 881089dec3bdcf94ba0a713c86714182, type: 2}
   selectedUnitData: {fileID: 11400000, guid: 520b7988f0cd5f3429035677ee655816, type: 2}
-  selectedElevationValue: 2
+  selectedElevationValue: 1
 --- !u!4 &2025446429
 Transform:
   m_ObjectHideFlags: 0

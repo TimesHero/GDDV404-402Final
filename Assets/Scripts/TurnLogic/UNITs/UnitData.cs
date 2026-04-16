@@ -16,6 +16,9 @@ public class UnitData : ScriptableObject
     [Min(0)] public int defense = 0;
     [Min(1)] public int movementPoints = 5;
     [Min(1)] public int attackRange = 1;
+    
+    [Header("Movement")]
+    [Min(0)] public int maxClimbHeight = 1;
 
     [Header("Combat")]
     public AttackType attackType = AttackType.Melee;

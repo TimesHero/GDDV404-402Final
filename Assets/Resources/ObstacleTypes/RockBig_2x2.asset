@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ObstacleData
   obstacleId: RockBig_2x2
   obstaclePrefab: {fileID: 1839618126132640118, guid: 93f71de161245fb4abe5a3a2d5139404, type: 3}
-  visualOffset: {x: 0, y: 0.1, z: 0}
+  visualOffset: {x: 0, y: 0, z: 0}
   visualRotationEuler: {x: -90, y: 0, z: 0}
   visualScale: {x: 400, y: 400, z: 400}
   blocksMovement: 1

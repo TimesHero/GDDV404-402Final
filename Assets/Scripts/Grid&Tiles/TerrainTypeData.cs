@@ -20,8 +20,14 @@ public class TerrainTypeData : ScriptableObject
     [SerializeField] private GameObject tileDecorationPrefab;
     [SerializeField] private Vector3 decorationOffset = Vector3.zero;
     
+    [Header("Materials")]
+    [SerializeField] private Material topMaterialOverride;
+    [SerializeField] private Material sideMaterialOverride;
+
+    public Material TopMaterialOverride => topMaterialOverride;
+    public Material SideMaterialOverride => sideMaterialOverride;
+    
     [Header("Surface Visuals")]
-    [SerializeField] private Material tileMaterialOverride;
     [SerializeField] private Texture2D debugPreviewTexture;
 
     public TerrainType TerrainType => terrainType;
@@ -36,6 +42,6 @@ public class TerrainTypeData : ScriptableObject
     public GameObject TileDecorationPrefab => tileDecorationPrefab;
     public Vector3 DecorationOffset => decorationOffset;
     
-    public Material TileMaterialOverride => tileMaterialOverride;
+    
     public Texture2D DebugPreviewTexture => debugPreviewTexture;
 }

@@ -114,6 +114,8 @@ public class ObstacleManager : MonoBehaviour
         if (gridManager == null || obstacleData == null)
             return false;
 
+        int? requiredElevation = null;
+
         for (int x = 0; x < obstacleData.FootprintSize.x; x++)
         {
             for (int y = 0; y < obstacleData.FootprintSize.y; y++)
@@ -133,6 +135,13 @@ public class ObstacleManager : MonoBehaviour
 
                 if (!tile.isWalkable || tile.isOccupied)
                     return false;
+
+                int tileElevation = GetTileElevation(tile);
+
+                if (requiredElevation == null)
+                    requiredElevation = tileElevation;
+                else if (tileElevation != requiredElevation.Value)
+                    return false;
             }
         }
 
@@ -141,12 +150,41 @@ public class ObstacleManager : MonoBehaviour
 
     private Vector3 GetObstacleCenterWorldPosition(ObstacleData obstacleData, Vector2Int origin)
     {
+        GridTile originTile = gridManager.GetTileAt(origin);
         Vector3 originWorld = gridManager.GetWorldPosition(origin);
 
         float offsetX = (obstacleData.FootprintSize.x - 1) * 0.5f;
         float offsetZ = (obstacleData.FootprintSize.y - 1) * 0.5f;
 
-        return originWorld + new Vector3(offsetX, 0f, offsetZ);
+        float y = originWorld.y;
+
+        if (originTile != null)
+        {
+            Renderer topRenderer = originTile.GetComponent<GridTile>() != null
+                ? originTile.GetComponent<GridTile>().GetTopRenderer()
+                : null;
+
+            if (topRenderer != null)
+                y = topRenderer.bounds.max.y;
+        }
+
+        return new Vector3(
+            originWorld.x + offsetX,
+            y,
+            originWorld.z + offsetZ
+        );
+    }
+    
+    private int GetTileElevation(GridTile tile)
+    {
+        if (tile == null)
+            return 0;
+
+        TileElevation tileElevation = tile.GetComponent<TileElevation>();
+        if (tileElevation == null)
+            return 0;
+
+        return tileElevation.Elevation;
     }
 
     /*// ////Test//// ////

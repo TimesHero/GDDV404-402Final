@@ -5,7 +5,7 @@ public class GridRangeFinder : MonoBehaviour
 {
     [SerializeField] private GridManager gridManager;
 
-    public Dictionary<GridTile, int> GetReachableTiles(GridTile startTile, int movementBudget)
+    public Dictionary<GridTile, int> GetReachableTiles(GridTile startTile, int movementBudget, GridUnit unit)
     {
         Dictionary<GridTile, int> reachableTiles = new Dictionary<GridTile, int>();
 
@@ -15,7 +15,7 @@ public class GridRangeFinder : MonoBehaviour
             return reachableTiles;
         }
 
-        if (startTile == null)
+        if (startTile == null || unit == null)
             return reachableTiles;
 
         List<GridTile> openList = new List<GridTile>();
@@ -41,6 +41,9 @@ public class GridRangeFinder : MonoBehaviour
                     continue;
 
                 if (neighbor.isOccupied && neighbor != startTile)
+                    continue;
+
+                if (!CanTraverseElevation(currentTile, neighbor, unit))
                     continue;
                 
                 int destinationCost = currentCost + neighbor.GetTraversalCost(true);
@@ -72,6 +75,31 @@ public class GridRangeFinder : MonoBehaviour
         }
 
         return reachableTiles;
+    }
+
+    private int GetTileElevation(GridTile tile)
+    {
+        if (tile == null)
+            return 0;
+
+        TileElevation tileElevation = tile.GetComponent<TileElevation>();
+        if (tileElevation == null)
+            return 0;
+
+        return tileElevation.Elevation;
+    }
+
+    private bool CanTraverseElevation(GridTile fromTile, GridTile toTile, GridUnit unit)
+    {
+        if (fromTile == null || toTile == null || unit == null)
+            return false;
+
+        int fromElevation = GetTileElevation(fromTile);
+        int toElevation = GetTileElevation(toTile);
+
+        int climbDelta = toElevation - fromElevation;
+
+        return climbDelta <= unit.MaxClimbHeight;
     }
 
     private GridTile GetLowestCostTile(List<GridTile> openList, Dictionary<GridTile, int> costs)

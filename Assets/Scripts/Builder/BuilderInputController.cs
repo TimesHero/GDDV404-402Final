@@ -79,8 +79,9 @@ public class BuilderInputController : MonoBehaviour
                 break;
 
             case BuilderToolMode.ElevationPaint:
-                Debug.Log("ElevationPaint mode selected. Hook not implemented yet.");
+                PaintElevation(currentHoveredTile);
                 break;
+            
         }
     }
     
@@ -300,5 +301,30 @@ public class BuilderInputController : MonoBehaviour
         Destroy(unit.gameObject);
 
         Debug.Log($"Removed unit from tile {tile?.GridPosition}");
+    }
+    
+    private void PaintElevation(GridTile tile)
+    {
+        if (tile == null)
+            return;
+
+        if (builderStateController == null)
+        {
+            Debug.LogError("BuilderInputController: BuilderStateController is missing.");
+            return;
+        }
+
+        TileElevation tileElevation = tile.GetComponent<TileElevation>();
+
+        if (tileElevation == null)
+        {
+            Debug.LogWarning($"Tile {tile.GridPosition} is missing TileElevation component.");
+            return;
+        }
+
+        int selectedElevation = builderStateController.SelectedElevationValue;
+        tileElevation.SetElevation(selectedElevation);
+
+        Debug.Log($"Set elevation of tile {tile.GridPosition} to {selectedElevation}");
     }
 }
