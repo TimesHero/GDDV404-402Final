@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3122a27a2ad3b454183526ad384816ec, type: 3}
+  m_Name: Grass
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainTypeData
+  terrainType: 1
+  movementCost: 2
+  damageOnEnter: 0
+  movementPenaltyOnStop: 0
+  damageOnStop: 0
+  movementPenaltyOnEntry: 1
+  isWalkable: 1
+  tileColor: {r: 0, g: 0.5188679, b: 0.0025887084, a: 1}
+  tileDecorationPrefab: {fileID: 0}
+  decorationOffset: {x: 0, y: 0, z: 0}
+  tileMaterialOverride: {fileID: 2100000, guid: 91e9758a5da7a934c9b91aec67dd4c2e, type: 2}
+  debugPreviewTexture: {fileID: 0}

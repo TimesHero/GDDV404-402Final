@@ -50,7 +50,10 @@ public class AStarPathFinder : MonoBehaviour
                 if (closedSet.Contains(neighborNode))
                     continue;
                 
-                int tentativeGCost = currentNode.GCost + neighborTile.movementCost;
+                bool isFinalDestination = neighborTile == targetTile;
+                int traversalCost = neighborTile.GetTraversalCost(isFinalDestination);
+
+                int tentativeGCost = currentNode.GCost + traversalCost;
                 
                 if (tentativeGCost < neighborNode.GCost)
                 {

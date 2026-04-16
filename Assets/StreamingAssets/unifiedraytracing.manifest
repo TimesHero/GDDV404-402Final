@@ -1,0 +1,29 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.3.7f1
+CRC: 3829083410
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 7cd04b1ade70262fb06d286bc1be1ae9
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 6dd610b4ed98050feee7c8a2a60ea089
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: 5ed92b1cb8550061e13449ec76fbff6b
+HashAppended: 0
+ClassTypes:
+- Class: 72
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Common/Utilities/CopyBuffer.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/block_reduce_part.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Common/GeometryPool/GeometryPoolKernels.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/build_hlbvh.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/scatter.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/block_scan.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/restructure_bvh.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/bit_histogram.compute
+- Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/Compute/RadeonRays/kernels/CopyPositions.compute
+Dependencies: []

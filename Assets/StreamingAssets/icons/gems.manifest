@@ -1,0 +1,26 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.3.7f1
+CRC: 3248977641
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 9471c29e21546402f7cd7f2a20d854c1
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: bc9f87c7e64ff656997db0f2b2a91703
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: 8541cb93cfd182b26e665a3042b9b653
+HashAppended: 0
+ClassTypes:
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 213
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/2D Assets/Icons/unnamed.jpg
+- Assets/2D Assets/Icons/3.png
+- Assets/2D Assets/Icons/1.png
+- Assets/2D Assets/Icons/2.jpg
+Dependencies: []
