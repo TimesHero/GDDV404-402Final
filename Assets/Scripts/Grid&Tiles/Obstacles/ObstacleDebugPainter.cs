@@ -88,7 +88,7 @@ public class ObstacleDebugPainter : MonoBehaviour
         if (tile == null)
             return;
 
-        bool success = obstacleManager.TryPlaceObstacle(selected, tile.GridPosition);
+        bool success = obstacleManager.TryPlaceObstacle(selected, tile.GridPosition, 0);
 
         if (success)
             Debug.Log($"Placed obstacle: {selected.name} at {tile.GridPosition}");

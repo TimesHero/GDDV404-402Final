@@ -10,48 +10,56 @@ public class ObstacleManager : MonoBehaviour
     private readonly List<PlacedObstacle> placedObstacles = new List<PlacedObstacle>();
     private readonly Dictionary<GridTile, PlacedObstacle> tileToObstacleMap = new Dictionary<GridTile, PlacedObstacle>();
 
-    public bool TryPlaceObstacle(ObstacleData obstacleData, Vector2Int origin)
+    public Vector3 GetPreviewWorldPosition(ObstacleData obstacleData, Vector2Int origin, int rotationY)
+    {
+        return GetObstacleCenterWorldPosition(obstacleData, origin, rotationY);
+    }
+    public bool TryPlaceObstacle(ObstacleData obstacleData, Vector2Int origin, int rotationY)
     {
         if (gridManager == null || obstacleData == null)
             return false;
 
-        if (!CanPlaceObstacle(obstacleData, origin))
+        if (!CanPlaceObstacle(obstacleData, origin, rotationY))
             return false;
 
         PlacedObstacle placedObstacle = new PlacedObstacle
         {
             ObstacleData = obstacleData,
-            Origin = origin
+            Origin = origin,
+            RotationY = rotationY
         };
-        
-        for (int x = 0; x < obstacleData.FootprintSize.x; x++)
+
+        List<Vector2Int> rotatedOffsets = GetRotatedFootprintOffsets(obstacleData.FootprintSize, rotationY);
+
+        foreach (Vector2Int offset in rotatedOffsets)
         {
-            for (int y = 0; y < obstacleData.FootprintSize.y; y++)
+            Vector2Int tilePos = origin + offset;
+            GridTile tile = gridManager.GetTileAt(tilePos);
+
+            if (tile == null)
+                continue;
+
+            placedObstacle.OccupiedTiles.Add(tile);
+            tileToObstacleMap[tile] = placedObstacle;
+
+            if (obstacleData.PaintTerrainUnderObstacle)
             {
-                Vector2Int tilePos = new Vector2Int(origin.x + x, origin.y + y);
-                GridTile tile = gridManager.GetTileAt(tilePos);
-
-                if (tile == null)
-                    continue;
-
-                placedObstacle.OccupiedTiles.Add(tile);
-                tileToObstacleMap[tile] = placedObstacle;
-
-                if (obstacleData.PaintTerrainUnderObstacle)
-                {
-                    tile.TerrainType = obstacleData.TerrainTypeUnderObstacle;
-                    tile.ApplyTerrainSettings();
-                }
-
-                if (obstacleData.BlocksMovement)
-                    tile.ForceSetWalkable(false);
+                tile.TerrainType = obstacleData.TerrainTypeUnderObstacle;
+                tile.ApplyTerrainSettings();
             }
+
+            if (obstacleData.BlocksMovement)
+                tile.ForceSetWalkable(false);
         }
 
         if (obstacleData.ObstaclePrefab != null)
         {
-            Vector3 spawnPosition = GetObstacleCenterWorldPosition(obstacleData, origin) + obstacleData.VisualOffset;
-            Quaternion spawnRotation = Quaternion.Euler(obstacleData.VisualRotationEuler);
+            Vector3 spawnPosition = GetObstacleCenterWorldPosition(obstacleData, origin, rotationY) 
+                                    + obstacleData.GetVisualOffsetForRotation(rotationY);
+
+            Quaternion spawnRotation = Quaternion.Euler(
+                obstacleData.GetVisualRotationEulerForRotation(rotationY)
+            );
 
             GameObject obstacleInstance = Instantiate(
                 obstacleData.ObstaclePrefab,
@@ -60,7 +68,7 @@ public class ObstacleManager : MonoBehaviour
                 obstacleParent
             );
 
-            obstacleInstance.transform.localScale = obstacleData.VisualScale;
+            obstacleInstance.transform.localScale = obstacleData.GetVisualScaleForRotation(rotationY);
             placedObstacle.Instance = obstacleInstance;
         }
 
@@ -109,54 +117,225 @@ public class ObstacleManager : MonoBehaviour
         placedObstacles.Remove(placedObstacle);
     }
 
-    public bool CanPlaceObstacle(ObstacleData obstacleData, Vector2Int origin)
+    public bool CanPlaceObstacle(ObstacleData obstacleData, Vector2Int origin, int rotationY)
     {
         if (gridManager == null || obstacleData == null)
             return false;
 
-        for (int x = 0; x < obstacleData.FootprintSize.x; x++)
+        int? requiredElevation = null;
+        List<Vector2Int> rotatedOffsets = GetRotatedFootprintOffsets(obstacleData.FootprintSize, rotationY);
+
+        foreach (Vector2Int offset in rotatedOffsets)
         {
-            for (int y = 0; y < obstacleData.FootprintSize.y; y++)
-            {
-                Vector2Int tilePos = new Vector2Int(origin.x + x, origin.y + y);
+            Vector2Int tilePos = origin + offset;
 
-                if (!gridManager.isInsideGrid(tilePos))
-                    return false;
+            if (!gridManager.isInsideGrid(tilePos))
+                return false;
 
-                GridTile tile = gridManager.GetTileAt(tilePos);
+            GridTile tile = gridManager.GetTileAt(tilePos);
+            if (tile == null)
+                return false;
 
-                if (tile == null)
-                    return false;
+            if (tileToObstacleMap.ContainsKey(tile))
+                return false;
 
-                if (tileToObstacleMap.ContainsKey(tile))
-                    return false;
+            if (!tile.isWalkable || tile.isOccupied)
+                return false;
 
-                if (!tile.isWalkable || tile.isOccupied)
-                    return false;
-            }
+            int tileElevation = GetTileElevation(tile);
+
+            if (requiredElevation == null)
+                requiredElevation = tileElevation;
+            else if (tileElevation != requiredElevation.Value)
+                return false;
         }
 
         return true;
     }
 
-    private Vector3 GetObstacleCenterWorldPosition(ObstacleData obstacleData, Vector2Int origin)
+    private Vector3 GetObstacleCenterWorldPosition(ObstacleData obstacleData, Vector2Int origin, int rotationY)
     {
-        Vector3 originWorld = gridManager.GetWorldPosition(origin);
+        GridTile originTile = gridManager.GetTileAt(origin);
+        if (originTile == null)
+            return gridManager.GetWorldPosition(origin);
 
-        float offsetX = (obstacleData.FootprintSize.x - 1) * 0.5f;
-        float offsetZ = (obstacleData.FootprintSize.y - 1) * 0.5f;
+        Vector3 pivot = GetTileTopCenter(originTile);
 
-        return originWorld + new Vector3(offsetX, 0f, offsetZ);
+        Vector3 rotatedAnchorOffset = RotateOffsetY(
+            obstacleData.VisualAnchorOffsetFromOrigin,
+            rotationY
+        );
+
+        return pivot + rotatedAnchorOffset;
     }
-
-    /*// ////Test//// ////
-    [SerializeField] private ObstacleData testObstacle;
-    [SerializeField] private Vector2Int testOrigin = new Vector2Int(3, 3);
     
-    private void Start()
+    private Vector3 GetTileTopCenter(GridTile tile)
     {
-        if (testObstacle != null)
-            TryPlaceObstacle(testObstacle, testOrigin);
+        if (tile == null)
+            return Vector3.zero;
+
+        Renderer topRenderer = tile.GetTopRenderer();
+        if (topRenderer != null)
+        {
+            return new Vector3(
+                topRenderer.bounds.center.x,
+                topRenderer.bounds.max.y,
+                topRenderer.bounds.center.z
+            );
+        }
+
+        return tile.transform.position;
     }
-    // // //////////////*/
+
+    private Vector3 RotateOffsetY(Vector3 offset, int rotationY)
+    {
+        switch (NormalizeRotationY(rotationY))
+        {
+            case 90:
+                return new Vector3(offset.z, offset.y, -offset.x);
+            case 180:
+                return new Vector3(-offset.x, offset.y, -offset.z);
+            case 270:
+                return new Vector3(-offset.z, offset.y, offset.x);
+            default:
+                return offset;
+        }
+    }
+
+    private int NormalizeRotationY(int rotationY)
+    {
+        rotationY %= 360;
+        if (rotationY < 0)
+            rotationY += 360;
+
+        if (rotationY >= 315 || rotationY < 45) return 0;
+        if (rotationY >= 45 && rotationY < 135) return 90;
+        if (rotationY >= 135 && rotationY < 225) return 180;
+        return 270;
+    }
+    
+    private int GetTileElevation(GridTile tile)
+    {
+        if (tile == null)
+            return 0;
+
+        TileElevation tileElevation = tile.GetComponent<TileElevation>();
+        if (tileElevation == null)
+            return 0;
+
+        return tileElevation.Elevation;
+    }
+    public IReadOnlyList<PlacedObstacle> GetPlacedObstacles()
+    {
+        return placedObstacles;
+    }
+
+    public void ClearAllObstacles()
+    {
+        List<PlacedObstacle> obstaclesToRemove = new List<PlacedObstacle>(placedObstacles);
+
+        foreach (PlacedObstacle obstacle in obstaclesToRemove)
+        {
+            RemoveObstacle(obstacle);
+        }
+    }
+    
+    public PlacedObstacle GetPlacedObstacleAtTile(Vector2Int tilePosition)
+    {
+        if (gridManager == null)
+            return null;
+
+        GridTile tile = gridManager.GetTileAt(tilePosition);
+        if (tile == null)
+            return null;
+
+        if (tileToObstacleMap.TryGetValue(tile, out PlacedObstacle placedObstacle))
+            return placedObstacle;
+
+        return null;
+    }
+    
+    public bool TrySetObstacleElevationAtTile(Vector2Int tilePosition, int newElevation)
+    {
+        PlacedObstacle placedObstacle = GetPlacedObstacleAtTile(tilePosition);
+        if (placedObstacle == null)
+            return false;
+
+        SetObstacleElevation(placedObstacle, newElevation);
+        return true;
+    }
+    
+    public void SetObstacleElevation(PlacedObstacle placedObstacle, int newElevation)
+    {
+        if (placedObstacle == null)
+            return;
+
+        foreach (GridTile tile in placedObstacle.OccupiedTiles)
+        {
+            if (tile == null)
+                continue;
+
+            TileElevation tileElevation = tile.GetComponent<TileElevation>();
+            if (tileElevation != null)
+                tileElevation.SetElevation(newElevation);
+        }
+
+        UpdateObstacleInstanceHeight(placedObstacle);
+    }
+    
+    private void UpdateObstacleInstanceHeight(PlacedObstacle placedObstacle)
+    {
+        if (placedObstacle == null || placedObstacle.Instance == null || placedObstacle.ObstacleData == null)
+            return;
+
+        Vector3 worldPos = GetObstacleCenterWorldPosition(
+            placedObstacle.ObstacleData,
+            placedObstacle.Origin,
+            placedObstacle.RotationY
+        ) + placedObstacle.ObstacleData.GetVisualOffsetForRotation(placedObstacle.RotationY);
+
+        placedObstacle.Instance.transform.position = worldPos;
+        placedObstacle.Instance.transform.rotation = Quaternion.Euler(
+            placedObstacle.ObstacleData.GetVisualRotationEulerForRotation(placedObstacle.RotationY)
+        );
+        placedObstacle.Instance.transform.localScale = placedObstacle.ObstacleData.GetVisualScaleForRotation(placedObstacle.RotationY);
+    }
+    
+    private Vector2Int GetRotatedFootprintSize(Vector2Int originalSize, int rotationY)
+    {
+        if (rotationY == 90 || rotationY == 270)
+            return new Vector2Int(originalSize.y, originalSize.x);
+
+        return originalSize;
+    }
+    
+    private List<Vector2Int> GetRotatedFootprintOffsets(Vector2Int footprintSize, int rotationY)
+    {
+        List<Vector2Int> offsets = new List<Vector2Int>();
+
+        for (int x = 0; x < footprintSize.x; x++)
+        {
+            for (int y = 0; y < footprintSize.y; y++)
+            {
+                Vector2Int offset = new Vector2Int(x, y);
+
+                switch (NormalizeRotationY(rotationY))
+                {
+                    case 90:
+                        offset = new Vector2Int(y, -x);
+                        break;
+                    case 180:
+                        offset = new Vector2Int(-x, -y);
+                        break;
+                    case 270:
+                        offset = new Vector2Int(-y, x);
+                        break;
+                }
+
+                offsets.Add(offset);
+            }
+        }
+
+        return offsets;
+    }
 }

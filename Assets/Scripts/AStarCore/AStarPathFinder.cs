@@ -5,12 +5,12 @@ public class AStarPathFinder : MonoBehaviour
 {
     [SerializeField] private GridManager gridManager;
 
-    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile)
+    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit)
     {
-        if (startTile == null || targetTile == null)
-        return null;
+        if (startTile == null || targetTile == null || unit == null)
+            return null;
         
-        if(!targetTile.isWalkable)
+        if (!targetTile.isWalkable)
             return null;
 
         Dictionary<GridTile, PathNode> allNodes = CreateNodeMap();
@@ -40,9 +40,14 @@ public class AStarPathFinder : MonoBehaviour
             {
                 if (neighborTile == null)
                     continue;
+
                 if (!neighborTile.isWalkable)
                     continue;
+
                 if (neighborTile.isOccupied && neighborTile != targetTile)
+                    continue;
+
+                if (!CanTraverseElevation(currentNode.Tile, neighborTile, unit))
                     continue;
                 
                 PathNode neighborNode = allNodes[neighborTile];
@@ -61,13 +66,38 @@ public class AStarPathFinder : MonoBehaviour
                     neighborNode.GCost = tentativeGCost;
                     neighborNode.HCost = CalculateHeuristic(neighborTile, targetTile);
                     
-                    
                     if (!openList.Contains(neighborNode))
                         openList.Add(neighborNode);
                 }
             }
         }
+
         return null;
+    }
+
+    private int GetTileElevation(GridTile tile)
+    {
+        if (tile == null)
+            return 0;
+
+        TileElevation tileElevation = tile.GetComponent<TileElevation>();
+        if (tileElevation == null)
+            return 0;
+
+        return tileElevation.Elevation;
+    }
+
+    private bool CanTraverseElevation(GridTile fromTile, GridTile toTile, GridUnit unit)
+    {
+        if (fromTile == null || toTile == null || unit == null)
+            return false;
+
+        int fromElevation = GetTileElevation(fromTile);
+        int toElevation = GetTileElevation(toTile);
+
+        int climbDelta = toElevation - fromElevation;
+
+        return climbDelta <= unit.MaxClimbHeight;
     }
     
     private Dictionary<GridTile, PathNode> CreateNodeMap()
@@ -83,9 +113,7 @@ public class AStarPathFinder : MonoBehaviour
                 GridTile tile = grid[x, y];
 
                 if (tile == null)
-                {
                     continue;
-                }
                 
                 nodeMap[tile] = new PathNode(tile);
             }
@@ -117,6 +145,7 @@ public class AStarPathFinder : MonoBehaviour
                     lowestNode = currentNode;
             }
         }
+
         return lowestNode;
     }
     
@@ -130,9 +159,9 @@ public class AStarPathFinder : MonoBehaviour
             path.Add(currentNode.Tile);
             currentNode = currentNode.Parent;
         }
+
         path.Add(startNode.Tile);
         path.Reverse();
         return path;
     }
-
 }

@@ -21,6 +21,7 @@ public class GridUnit : MonoBehaviour
     
     [Header("Unit Data")]
     [SerializeField] private UnitData unitData;
+    public int MaxClimbHeight => unitData != null ? unitData.maxClimbHeight : 1;
     
     [Header("Unit Settings")]
     [SerializeField] private float moveSpeed = 4f;

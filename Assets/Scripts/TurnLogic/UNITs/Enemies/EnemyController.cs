@@ -71,7 +71,7 @@ public class EnemyController : MonoBehaviour
         if (startTile == null || targetTile == null)
             return false;
 
-        List<GridTile> fullPath = pathFinder.FindPath(startTile, targetTile);
+        List<GridTile> fullPath = pathFinder.FindPath(startTile, targetTile, controlledUnit);
 
         if (fullPath == null || fullPath.Count <= 1)
             return false;

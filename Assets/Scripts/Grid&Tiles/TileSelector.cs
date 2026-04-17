@@ -216,7 +216,7 @@ public class TileSelector : MonoBehaviour
             return;
         }
 
-        List<GridTile> path = pathFinder.FindPath(selectedStartTile, selectedTargetTile);
+        List<GridTile> path = pathFinder.FindPath(selectedStartTile, selectedTargetTile, selectedUnit);
 
         if (path == null)
         {
@@ -374,8 +374,8 @@ public class TileSelector : MonoBehaviour
 
         ClearReachableTiles();
 
-        reachableTiles = rangeFinder.GetReachableTiles(unit.CurrentTile, unit.MaxMovementPoints);
-
+        reachableTiles =
+            rangeFinder.GetReachableTiles(selectedUnit.CurrentTile, selectedUnit.MaxMovementPoints, selectedUnit);
         foreach (KeyValuePair<GridTile, int> pair in reachableTiles)
         {
             GridTile tile = pair.Key;
@@ -414,22 +414,22 @@ public class TileSelector : MonoBehaviour
         if (pathFinder == null)
             return;
 
-        if (target == null || start == null)
+        if (target == null || start == null || selectedUnit == null)
             return;
-        
+    
         if (lastPreviewTarget == target)
             return;
 
         ClearPreviewPath();
 
-        List<GridTile> path = pathFinder.FindPath(start, target);
+        List<GridTile> path = pathFinder.FindPath(start, target, selectedUnit);
 
         if (path == null)
             return;
 
         previewPath = new List<GridTile>(path);
         lastPreviewTarget = target;
-        
+    
         start.ShowOverlayColor(startColor);
         target.ShowOverlayColor(targetColor);
 

@@ -34,9 +34,11 @@ public class GridTile : MonoBehaviour
     [Header("Visuals")]
     [SerializeField] private Renderer tileRenderer;
     [SerializeField] private Renderer highlightOverlayRenderer;
+    [SerializeField] private Renderer elevationColumnRenderer;
     
     [Header("References")]
     [SerializeField] private TileManager tileManager;
+    [SerializeField] private Transform decorationAnchor;
 
     private MaterialPropertyBlock baseBlock;
     private MaterialPropertyBlock overlayBlock;
@@ -44,6 +46,7 @@ public class GridTile : MonoBehaviour
     private int overlayColorPropertyId = -1;
     
     private Material originalBaseMaterial;
+    private Material originalSideMaterial;
     
     public TerrainTypeData CurrentTerrainData
     {
@@ -74,6 +77,9 @@ public class GridTile : MonoBehaviour
         
         if (tileRenderer != null)
             originalBaseMaterial = tileRenderer.sharedMaterial;
+        
+        if (elevationColumnRenderer != null)
+            originalSideMaterial = elevationColumnRenderer.sharedMaterial;
 
         CacheColorProperties();
         HideOverlay();
@@ -157,22 +163,109 @@ public class GridTile : MonoBehaviour
     }
     private void ApplyTerrainVisualOnly()
     {
-        if (tileManager == null || tileRenderer == null || baseColorPropertyId == -1)
+        if (tileManager == null)
             return;
 
         TerrainTypeData data = tileManager.GetTerrainData(terrainType);
         if (data == null)
             return;
 
-        if (data.TileMaterialOverride != null)
-            tileRenderer.sharedMaterial = data.TileMaterialOverride;
-        else if (originalBaseMaterial != null)
+        ApplyTopVisual(data);
+        ApplySideVisual(data);
+    }
+    private void ApplyTopVisual(TerrainTypeData data)
+    {
+        if (tileRenderer == null)
+            return;
+
+        if (data.TopMaterialOverride != null)
+        {
+            tileRenderer.sharedMaterial = data.TopMaterialOverride;
+            tileRenderer.SetPropertyBlock(null);
+            return;
+        }
+
+        if (originalBaseMaterial != null)
             tileRenderer.sharedMaterial = originalBaseMaterial;
 
-        tileRenderer.GetPropertyBlock(baseBlock);
-        baseBlock.SetColor(baseColorPropertyId, data.TileColor);
-        tileRenderer.SetPropertyBlock(baseBlock);
+        int colorPropertyId = GetRendererColorPropertyId(tileRenderer);
+        if (colorPropertyId != -1)
+        {
+            tileRenderer.GetPropertyBlock(baseBlock);
+            baseBlock.SetColor(colorPropertyId, data.TileColor);
+            tileRenderer.SetPropertyBlock(baseBlock);
+        }
     }
+
+    private void ApplySideVisual(TerrainTypeData data)
+    {
+        if (elevationColumnRenderer == null)
+            return;
+
+        if (data.SideMaterialOverride != null)
+        {
+            elevationColumnRenderer.sharedMaterial = data.SideMaterialOverride;
+            elevationColumnRenderer.SetPropertyBlock(null);
+            return;
+        }
+
+        if (originalSideMaterial != null)
+            elevationColumnRenderer.sharedMaterial = originalSideMaterial;
+
+        int colorPropertyId = GetRendererColorPropertyId(elevationColumnRenderer);
+        if (colorPropertyId != -1)
+        {
+            MaterialPropertyBlock sideBlock = new MaterialPropertyBlock();
+            elevationColumnRenderer.GetPropertyBlock(sideBlock);
+            sideBlock.SetColor(colorPropertyId, data.TileColor);
+            elevationColumnRenderer.SetPropertyBlock(sideBlock);
+        }
+    }
+
+    private int GetRendererColorPropertyId(Renderer targetRenderer)
+    {
+        if (targetRenderer == null || targetRenderer.sharedMaterial == null)
+            return -1;
+
+        Material material = targetRenderer.sharedMaterial;
+
+        if (material.HasProperty("_BaseColor"))
+            return Shader.PropertyToID("_BaseColor");
+
+        if (material.HasProperty("_Color"))
+            return Shader.PropertyToID("_Color");
+
+        return -1;
+    }
+    //OLD///
+    /*private void ApplyRendererVisual(Renderer targetRenderer, TerrainTypeData data)
+    {
+        if (targetRenderer == null)
+            return;
+
+        int colorPropertyId = -1;
+
+        if (targetRenderer.sharedMaterial != null)
+        {
+            if (targetRenderer.sharedMaterial.HasProperty("_BaseColor"))
+                colorPropertyId = Shader.PropertyToID("_BaseColor");
+            else if (targetRenderer.sharedMaterial.HasProperty("_Color"))
+                colorPropertyId = Shader.PropertyToID("_Color");
+        }
+
+        if (data.TileMaterialOverride != null)
+            targetRenderer.sharedMaterial = data.TileMaterialOverride;
+        else if (originalBaseMaterial != null && targetRenderer == tileRenderer)
+            targetRenderer.sharedMaterial = originalBaseMaterial;
+
+        if (colorPropertyId != -1)
+        {
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            targetRenderer.GetPropertyBlock(block);
+            block.SetColor(colorPropertyId, data.TileColor);
+            targetRenderer.SetPropertyBlock(block);
+        }
+    }*/
     private void ShowOverlay(Color color)
     {
         if (highlightOverlayRenderer == null || overlayColorPropertyId == -1)
@@ -235,9 +328,14 @@ public class GridTile : MonoBehaviour
         if (data.TileDecorationPrefab == null)
             return;
 
+        Vector3 spawnPosition = transform.position + data.DecorationOffset;
+
+        if (decorationAnchor != null)
+            spawnPosition = decorationAnchor.position + data.DecorationOffset;
+
         spawnedDecoration = Instantiate(
             data.TileDecorationPrefab,
-            transform.position + data.DecorationOffset,
+            spawnPosition,
             Quaternion.identity,
             transform
         );
@@ -245,5 +343,9 @@ public class GridTile : MonoBehaviour
     public void ForceSetWalkable(bool value)
     {
         isWalkable = value;
+    }
+    public Renderer GetTopRenderer()
+    {
+        return tileRenderer;
     }
 }
