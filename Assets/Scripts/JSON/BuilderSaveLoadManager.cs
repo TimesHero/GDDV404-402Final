@@ -13,9 +13,11 @@ public class BuilderSaveLoadManager : MonoBehaviour
     [SerializeField] private Transform enemyUnitParent;
 
     [Header("Save Settings")]
-    [SerializeField] private string levelFileName = "TestLevel_01";
+    public string levelFileName = "TestLevel_01";
 
     public string SavePath => GetEditorLevelSavePath();
+    
+    public string LevelFileName => levelFileName;
 
     private string GetEditorLevelSavePath()
     {
@@ -25,6 +27,32 @@ public class BuilderSaveLoadManager : MonoBehaviour
             Directory.CreateDirectory(folderPath);
 
         return Path.Combine(folderPath, levelFileName + ".json");
+    }
+    
+    public void SetLevelFileName(string newFileName)
+    {
+        if (string.IsNullOrWhiteSpace(newFileName))
+            return;
+
+        levelFileName = SanitizeFileName(newFileName);
+        Debug.Log($"Level file name set to: {levelFileName}");
+    }
+    
+    private string SanitizeFileName(string rawName)
+    {
+        string sanitized = rawName.Trim();
+
+        foreach (char invalidChar in Path.GetInvalidFileNameChars())
+        {
+            sanitized = sanitized.Replace(invalidChar.ToString(), "");
+        }
+
+        sanitized = sanitized.Replace(".json", "");
+
+        if (string.IsNullOrWhiteSpace(sanitized))
+            sanitized = "TestLevel_01";
+
+        return sanitized;
     }
 
     public void SaveLevel()
@@ -298,32 +326,7 @@ public class BuilderSaveLoadManager : MonoBehaviour
     
     public void ClearBuilderBeforeGridResize()
     {
-        GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in playerUnits)
-        {
-            if (unit == null)
-                continue;
-
-            if (unit.CurrentTile != null)
-                unit.CurrentTile.SetOccupant(null);
-
-            Destroy(unit.gameObject);
-        }
-
-        GridUnit[] enemyUnits = enemyUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in enemyUnits)
-        {
-            if (unit == null)
-                continue;
-
-            if (unit.CurrentTile != null)
-                unit.CurrentTile.SetOccupant(null);
-
-            Destroy(unit.gameObject);
-        }
-
-        if (obstacleManager != null)
-            obstacleManager.ClearAllObstacles();
+        ClearCurrentBuilderState();
     }
 
     private void ClearCurrentBuilderState()
@@ -417,4 +420,36 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
         return offsets;
     }
+    
+    public List<string> GetAvailableLevelFileNames()
+    {
+        List<string> fileNames = new List<string>();
+
+        string folderPath = Path.Combine(Application.dataPath, "Resources", "LevelLayouts");
+
+        if (!Directory.Exists(folderPath))
+            return fileNames;
+
+        string[] files = Directory.GetFiles(folderPath, "*.json");
+
+        foreach (string filePath in files)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            fileNames.Add(fileName);
+        }
+
+        fileNames.Sort();
+        return fileNames;
+    }
+
+    public void LoadLevelByFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return;
+
+        levelFileName = fileName;
+        LoadLevel();
+    }
+    
+    
 }

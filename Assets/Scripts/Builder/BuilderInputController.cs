@@ -4,6 +4,8 @@ using UnityEngine.InputSystem;
 
 public class BuilderInputController : MonoBehaviour
 {
+    [SerializeField] private GameObject blockingUIPanel;
+    
     private readonly List<GridTile> currentBrushHoverTiles = new List<GridTile>();
     
     private Vector3 placementRotationAnchorWorld;
@@ -36,6 +38,11 @@ public class BuilderInputController : MonoBehaviour
     {
         inputActions = new InputSystem_Actions();
     }
+    
+    private bool IsUIBlockingSceneInteraction()
+    {
+        return blockingUIPanel != null && blockingUIPanel.activeInHierarchy;
+    }
 
     private void OnEnable()
     {
@@ -57,6 +64,13 @@ public class BuilderInputController : MonoBehaviour
 
     private void Update()
     {
+        if (IsUIBlockingSceneInteraction())
+        {
+            ClearBrushHoverHighlight();
+            previousHoveredTile = currentHoveredTile;
+            currentHoveredTile = null;
+            return;
+        }
         if (isDraggingPlacementRotation && placementRotationAnchorTile != null)
         {
             LockHoverToPlacementAnchor();
@@ -512,6 +526,9 @@ public class BuilderInputController : MonoBehaviour
     
     private void OnLeftClickStarted(InputAction.CallbackContext context)
     {
+        if (IsUIBlockingSceneInteraction())
+            return;
+        
         if (builderStateController == null || currentHoveredTile == null)
             return;
 
@@ -541,6 +558,8 @@ public class BuilderInputController : MonoBehaviour
     
     private void OnLeftClickCanceled(InputAction.CallbackContext context)
     {
+        if (IsUIBlockingSceneInteraction())
+            return;
         if (builderStateController == null || placementRotationAnchorTile == null)
             return;
 

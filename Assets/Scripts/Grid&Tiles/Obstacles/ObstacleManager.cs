@@ -236,7 +236,47 @@ public class ObstacleManager : MonoBehaviour
 
         foreach (PlacedObstacle obstacle in obstaclesToRemove)
         {
-            RemoveObstacle(obstacle);
+            if (obstacle == null)
+                continue;
+
+            foreach (GridTile tile in obstacle.OccupiedTiles)
+            {
+                if (tile == null)
+                    continue;
+
+                if (tileToObstacleMap.TryGetValue(tile, out PlacedObstacle mappedObstacle) && mappedObstacle == obstacle)
+                    tileToObstacleMap.Remove(tile);
+
+                if (obstacle.ObstacleData != null && obstacle.ObstacleData.BlocksMovement)
+                    tile.ForceSetWalkable(true);
+            }
+
+            if (obstacle.Instance != null)
+            {
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    DestroyImmediate(obstacle.Instance);
+                else
+#endif
+                    Destroy(obstacle.Instance);
+            }
+        }
+
+        placedObstacles.Clear();
+
+        if (obstacleParent != null)
+        {
+            for (int i = obstacleParent.childCount - 1; i >= 0; i--)
+            {
+                Transform child = obstacleParent.GetChild(i);
+
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    DestroyImmediate(child.gameObject);
+                else
+#endif
+                    Destroy(child.gameObject);
+            }
         }
     }
     
