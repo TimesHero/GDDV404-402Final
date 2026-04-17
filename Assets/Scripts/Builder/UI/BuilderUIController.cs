@@ -4,6 +4,12 @@ using UnityEngine.UI;
 
 public class BuilderUIController : MonoBehaviour
 {
+    [SerializeField] private BuilderSaveLoadManager builderSaveLoadManager;
+    [Header("Grid Size")]
+    [SerializeField] private GridManager gridManager;
+    [SerializeField] private TMP_InputField gridWidthInput;
+    [SerializeField] private TMP_InputField gridHeightInput;
+    
     [Header("Slider Limits")]
     [SerializeField] private int minBrushSize = 1;
     [SerializeField] private int maxBrushSize = 5;
@@ -51,8 +57,44 @@ public class BuilderUIController : MonoBehaviour
             elevationSlider.wholeNumbers = true;
             elevationSlider.value = builderStateController != null ? builderStateController.SelectedElevationValue : minElevationValue;
         }
+        
+        if (gridManager != null)
+        {
+            if (gridWidthInput != null)
+                gridWidthInput.text = gridManager.Width.ToString();
 
+            if (gridHeightInput != null)
+                gridHeightInput.text = gridManager.Height.ToString();
+        }
         RefreshUI();
+    }
+    
+    public void ApplyGridSizeFromUI()
+    {
+        if (gridManager == null)
+            return;
+
+        if (gridWidthInput == null || gridHeightInput == null)
+            return;
+
+        if (!int.TryParse(gridWidthInput.text, out int newWidth))
+            return;
+
+        if (!int.TryParse(gridHeightInput.text, out int newHeight))
+            return;
+
+        newWidth = Mathf.Max(1, newWidth);
+        newHeight = Mathf.Max(1, newHeight);
+
+        if (builderSaveLoadManager != null)
+            builderSaveLoadManager.ClearBuilderBeforeGridResize();
+
+        gridManager.RebuildGrid(newWidth, newHeight);
+
+        gridWidthInput.text = gridManager.Width.ToString();
+        gridHeightInput.text = gridManager.Height.ToString();
+
+        Debug.Log($"UI Grid Size changed to: {gridManager.Width} x {gridManager.Height}");
     }
 
     public void RefreshUI()

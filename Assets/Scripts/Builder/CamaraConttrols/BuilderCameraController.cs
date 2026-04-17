@@ -3,6 +3,10 @@ using UnityEngine.InputSystem;
 
 public class BuilderCameraController : MonoBehaviour
 {
+    private Vector3 initialRigPosition;
+    private Quaternion initialPivotRotation;
+    private float initialOrthographicSize;    
+    
     [Header("References")]
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Camera controlledCamera;
@@ -45,6 +49,14 @@ public class BuilderCameraController : MonoBehaviour
 
         if (controlledCamera != null)
             controlledCamera.transform.localPosition = defaultCameraLocalPosition;
+        
+        initialRigPosition = transform.position;
+
+        if (cameraPivot != null)
+            initialPivotRotation = cameraPivot.rotation;
+
+        if (controlledCamera != null && controlledCamera.orthographic)
+            initialOrthographicSize = controlledCamera.orthographicSize;
     }
 
     private void Update()
@@ -107,14 +119,26 @@ public class BuilderCameraController : MonoBehaviour
         if (Mathf.Abs(scroll) < 0.01f)
             return;
 
-        Vector3 localPos = controlledCamera.transform.localPosition;
+        if (controlledCamera.orthographic)
+        {
+            float newSize = controlledCamera.orthographicSize - (scroll * 0.01f * zoomSpeed);
+            controlledCamera.orthographicSize = Mathf.Clamp(newSize, minZoomDistance, maxZoomDistance);
 
-        float currentDistance = Mathf.Abs(localPos.z);
-        currentDistance -= scroll * zoomSpeed;
-        currentDistance = Mathf.Clamp(currentDistance, minZoomDistance, maxZoomDistance);
+            Debug.Log($"Ortho Zoom Size: {controlledCamera.orthographicSize}");
+        }
+        else
+        {
+            Vector3 localPos = controlledCamera.transform.localPosition;
 
-        localPos.z = -currentDistance;
-        controlledCamera.transform.localPosition = localPos;
+            float currentDistance = Mathf.Abs(localPos.z);
+            currentDistance -= scroll * 0.01f * zoomSpeed;
+            currentDistance = Mathf.Clamp(currentDistance, minZoomDistance, maxZoomDistance);
+
+            localPos.z = -currentDistance;
+            controlledCamera.transform.localPosition = localPos;
+
+            Debug.Log($"Perspective Zoom Distance: {currentDistance}");
+        }
     }
 
     private void HandleKeyboardRotation()
@@ -224,13 +248,13 @@ public class BuilderCameraController : MonoBehaviour
 
     public void ResetCameraToStart()
     {
-        transform.position = defaultRigPosition;
+        transform.position = initialRigPosition;
 
         if (cameraPivot != null)
-            cameraPivot.rotation = Quaternion.Euler(defaultPivotRotation);
+            cameraPivot.rotation = initialPivotRotation;
 
-        if (controlledCamera != null)
-            controlledCamera.transform.localPosition = defaultCameraLocalPosition;
+        if (controlledCamera != null && controlledCamera.orthographic)
+            controlledCamera.orthographicSize = initialOrthographicSize;
 
         isOrbiting = false;
     }

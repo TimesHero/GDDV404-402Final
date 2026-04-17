@@ -28,13 +28,15 @@ public class ObstacleLayoutData
     public string obstacleName;
     public int originX;
     public int originY;
+    public int rotationY;
 }
 
 [Serializable]
 public class UnitLayoutData
 {
-    public string unitName;
+    public string unitId;
     public int x;
     public int y;
+    public int rotationY;
     public string team;
 }
