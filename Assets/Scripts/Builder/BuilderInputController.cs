@@ -4,6 +4,10 @@ using UnityEngine.InputSystem;
 
 public class BuilderInputController : MonoBehaviour
 {
+    [SerializeField] private GameObject blockingUIPanel;
+    
+    private readonly List<GridTile> currentBrushHoverTiles = new List<GridTile>();
+    
     private Vector3 placementRotationAnchorWorld;
     private bool isDraggingPlacementRotation;
     private GridTile placementRotationAnchorTile;
@@ -34,6 +38,11 @@ public class BuilderInputController : MonoBehaviour
     {
         inputActions = new InputSystem_Actions();
     }
+    
+    private bool IsUIBlockingSceneInteraction()
+    {
+        return blockingUIPanel != null && blockingUIPanel.activeInHierarchy;
+    }
 
     private void OnEnable()
     {
@@ -55,6 +64,13 @@ public class BuilderInputController : MonoBehaviour
 
     private void Update()
     {
+        if (IsUIBlockingSceneInteraction())
+        {
+            ClearBrushHoverHighlight();
+            previousHoveredTile = currentHoveredTile;
+            currentHoveredTile = null;
+            return;
+        }
         if (isDraggingPlacementRotation && placementRotationAnchorTile != null)
         {
             LockHoverToPlacementAnchor();
@@ -72,11 +88,10 @@ public class BuilderInputController : MonoBehaviour
         if (placementRotationAnchorTile == null)
             return;
 
+        ClearBrushHoverHighlight();
+
         if (currentHoveredTile != placementRotationAnchorTile)
         {
-            if (currentHoveredTile != null)
-                currentHoveredTile.ResetHighlight();
-
             currentHoveredTile = placementRotationAnchorTile;
         }
 
@@ -145,20 +160,18 @@ public class BuilderInputController : MonoBehaviour
 
             if (tile != currentHoveredTile)
             {
-                if (currentHoveredTile != null)
-                    currentHoveredTile.ResetHighlight();
+                ClearBrushHoverHighlight();
 
                 previousHoveredTile = currentHoveredTile;
                 currentHoveredTile = tile;
 
                 if (currentHoveredTile != null)
-                    currentHoveredTile.SetHoverHighlight(hoverColor);
+                    ApplyBrushHoverHighlight(currentHoveredTile);
             }
         }
         else
         {
-            if (currentHoveredTile != null)
-                currentHoveredTile.ResetHighlight();
+            ClearBrushHoverHighlight();
 
             previousHoveredTile = currentHoveredTile;
             currentHoveredTile = null;
@@ -513,6 +526,9 @@ public class BuilderInputController : MonoBehaviour
     
     private void OnLeftClickStarted(InputAction.CallbackContext context)
     {
+        if (IsUIBlockingSceneInteraction())
+            return;
+        
         if (builderStateController == null || currentHoveredTile == null)
             return;
 
@@ -542,6 +558,8 @@ public class BuilderInputController : MonoBehaviour
     
     private void OnLeftClickCanceled(InputAction.CallbackContext context)
     {
+        if (IsUIBlockingSceneInteraction())
+            return;
         if (builderStateController == null || placementRotationAnchorTile == null)
             return;
 
@@ -559,6 +577,12 @@ public class BuilderInputController : MonoBehaviour
         isDraggingPlacementRotation = false;
         placementRotationAnchorTile = null;
         placementRotationAnchorWorld = Vector3.zero;
+
+        ClearBrushHoverHighlight();
+        previousHoveredTile = null;
+        currentHoveredTile = null;
+
+        UpdateHoveredTile();
     }
     
     private Vector3 GetTileTopCenter(GridTile tile)
@@ -571,5 +595,35 @@ public class BuilderInputController : MonoBehaviour
             return topRenderer.bounds.center + Vector3.up * (topRenderer.bounds.extents.y);
 
         return tile.transform.position;
+    }
+    
+    private void ClearBrushHoverHighlight()
+    {
+        foreach (GridTile tile in currentBrushHoverTiles)
+        {
+            if (tile != null)
+                tile.ResetHighlight();
+        }
+
+        currentBrushHoverTiles.Clear();
+    }
+
+    private void ApplyBrushHoverHighlight(GridTile centerTile)
+    {
+        ClearBrushHoverHighlight();
+
+        if (centerTile == null)
+            return;
+
+        List<GridTile> brushTiles = GetTilesInBrush(centerTile);
+
+        foreach (GridTile tile in brushTiles)
+        {
+            if (tile == null)
+                continue;
+
+            tile.SetHoverHighlight(hoverColor);
+            currentBrushHoverTiles.Add(tile);
+        }
     }
 }

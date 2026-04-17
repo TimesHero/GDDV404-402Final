@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class BuilderSaveLoadManager : MonoBehaviour
 {
+    [SerializeField] private BuilderSaveLoadManager builderSaveLoadManager;
+    
     [Header("References")]
     [SerializeField] private GridManager gridManager;
     [SerializeField] private ObstacleManager obstacleManager;
@@ -11,9 +13,47 @@ public class BuilderSaveLoadManager : MonoBehaviour
     [SerializeField] private Transform enemyUnitParent;
 
     [Header("Save Settings")]
-    [SerializeField] private string fileName = "level_layout.json";
+    public string levelFileName = "TestLevel_01";
 
-    public string SavePath => Path.Combine(Application.persistentDataPath, fileName);
+    public string SavePath => GetEditorLevelSavePath();
+    
+    public string LevelFileName => levelFileName;
+
+    private string GetEditorLevelSavePath()
+    {
+        string folderPath = Path.Combine(Application.dataPath, "Resources", "LevelLayouts");
+
+        if (!Directory.Exists(folderPath))
+            Directory.CreateDirectory(folderPath);
+
+        return Path.Combine(folderPath, levelFileName + ".json");
+    }
+    
+    public void SetLevelFileName(string newFileName)
+    {
+        if (string.IsNullOrWhiteSpace(newFileName))
+            return;
+
+        levelFileName = SanitizeFileName(newFileName);
+        Debug.Log($"Level file name set to: {levelFileName}");
+    }
+    
+    private string SanitizeFileName(string rawName)
+    {
+        string sanitized = rawName.Trim();
+
+        foreach (char invalidChar in Path.GetInvalidFileNameChars())
+        {
+            sanitized = sanitized.Replace(invalidChar.ToString(), "");
+        }
+
+        sanitized = sanitized.Replace(".json", "");
+
+        if (string.IsNullOrWhiteSpace(sanitized))
+            sanitized = "TestLevel_01";
+
+        return sanitized;
+    }
 
     public void SaveLevel()
     {
@@ -23,6 +63,10 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
         string json = JsonUtility.ToJson(layoutData, true);
         File.WriteAllText(SavePath, json);
+
+#if UNITY_EDITOR
+        UnityEditor.AssetDatabase.Refresh();
+#endif
 
         Debug.Log($"Saved level JSON to: {SavePath}");
     }
@@ -59,7 +103,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
         GridTile[,] grid = gridManager.Grid;
 
-        // Save tiles
         for (int x = 0; x < gridManager.Width; x++)
         {
             for (int y = 0; y < gridManager.Height; y++)
@@ -82,7 +125,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
             }
         }
 
-        // Save obstacles
         foreach (PlacedObstacle placedObstacle in obstacleManager.GetPlacedObstacles())
         {
             if (placedObstacle == null || placedObstacle.ObstacleData == null)
@@ -92,42 +134,47 @@ public class BuilderSaveLoadManager : MonoBehaviour
             {
                 obstacleName = placedObstacle.ObstacleData.name,
                 originX = placedObstacle.Origin.x,
-                originY = placedObstacle.Origin.y
+                originY = placedObstacle.Origin.y,
+                rotationY = placedObstacle.RotationY
             };
 
             layoutData.obstacles.Add(obstacleData);
         }
 
-        // Save player units
         GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in playerUnits)
         {
             if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
                 continue;
 
+            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
+
             UnitLayoutData unitData = new UnitLayoutData
             {
-                unitName = unit.UnitData.unitName,
+                unitId = unit.UnitData.UnitId,
                 x = unit.CurrentTile.X,
                 y = unit.CurrentTile.Y,
+                rotationY = rotationY,
                 team = "Player"
             };
 
             layoutData.units.Add(unitData);
         }
 
-        // Save enemy units
         GridUnit[] enemyUnits = enemyUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in enemyUnits)
         {
             if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
                 continue;
 
+            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
+
             UnitLayoutData unitData = new UnitLayoutData
             {
-                unitName = unit.UnitData.unitName,
+                unitId = unit.UnitData.UnitId,
                 x = unit.CurrentTile.X,
                 y = unit.CurrentTile.Y,
+                rotationY = rotationY,
                 team = "Enemy"
             };
 
@@ -141,7 +188,8 @@ public class BuilderSaveLoadManager : MonoBehaviour
     {
         ClearCurrentBuilderState();
 
-        // Load obstacle assets first
+        gridManager.RebuildGrid(layoutData.width, layoutData.height);
+
         ObstacleData[] obstacleAssets = Resources.LoadAll<ObstacleData>("ObstacleTypes");
         Dictionary<string, ObstacleData> obstacleMap = new Dictionary<string, ObstacleData>();
 
@@ -151,7 +199,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 obstacleMap.Add(obstacle.name, obstacle);
         }
 
-        // Build a set of all tiles covered by obstacles
         HashSet<Vector2Int> obstacleCoveredTiles = new HashSet<Vector2Int>();
 
         foreach (ObstacleLayoutData obstacleData in layoutData.obstacles)
@@ -162,21 +209,22 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 continue;
             }
 
-            for (int x = 0; x < obstacleAsset.FootprintSize.x; x++)
-            {
-                for (int y = 0; y < obstacleAsset.FootprintSize.y; y++)
-                {
-                    Vector2Int tilePos = new Vector2Int(
-                        obstacleData.originX + x,
-                        obstacleData.originY + y
-                    );
+            List<Vector2Int> rotatedOffsets = GetRotatedFootprintOffsets(
+                obstacleAsset.FootprintSize,
+                obstacleData.rotationY
+            );
 
-                    obstacleCoveredTiles.Add(tilePos);
-                }
+            foreach (Vector2Int offset in rotatedOffsets)
+            {
+                Vector2Int tilePos = new Vector2Int(
+                    obstacleData.originX + offset.x,
+                    obstacleData.originY + offset.y
+                );
+
+                obstacleCoveredTiles.Add(tilePos);
             }
         }
 
-        // First pass: elevation for all tiles
         foreach (TileLayoutData tileData in layoutData.tiles)
         {
             GridTile tile = gridManager.GetTileAt(new Vector2Int(tileData.x, tileData.y));
@@ -188,7 +236,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 tileElevation.SetElevation(tileData.elevation);
         }
 
-        // Second pass: terrain only for tiles NOT covered by obstacles
         foreach (TileLayoutData tileData in layoutData.tiles)
         {
             Vector2Int tilePos = new Vector2Int(tileData.x, tileData.y);
@@ -207,7 +254,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
             }
         }
 
-        // Rebuild obstacles
         foreach (ObstacleLayoutData obstacleData in layoutData.obstacles)
         {
             if (!obstacleMap.TryGetValue(obstacleData.obstacleName, out ObstacleData obstacleAsset))
@@ -219,28 +265,34 @@ public class BuilderSaveLoadManager : MonoBehaviour
             bool placed = obstacleManager.TryPlaceObstacle(
                 obstacleAsset,
                 new Vector2Int(obstacleData.originX, obstacleData.originY),
-                0
+                obstacleData.rotationY
             );
 
-            Debug.Log($"LOAD obstacle '{obstacleData.obstacleName}' at ({obstacleData.originX}, {obstacleData.originY}) -> placed: {placed}");
+            Debug.Log($"LOAD obstacle '{obstacleData.obstacleName}' at ({obstacleData.originX}, {obstacleData.originY}), rot {obstacleData.rotationY} -> placed: {placed}");
         }
 
-        // Load unit assets
-        UnitData[] unitAssets = Resources.LoadAll<UnitData>("UnitData");
+        UnitData[] playerUnitAssets = Resources.LoadAll<UnitData>("UnitData/Player");
+        UnitData[] enemyUnitAssets = Resources.LoadAll<UnitData>("UnitData/Enemy");
+
         Dictionary<string, UnitData> unitMap = new Dictionary<string, UnitData>();
 
-        foreach (UnitData unitAsset in unitAssets)
+        foreach (UnitData unitAsset in playerUnitAssets)
         {
-            if (unitAsset != null && !unitMap.ContainsKey(unitAsset.unitName))
-                unitMap.Add(unitAsset.unitName, unitAsset);
+            if (unitAsset != null && !string.IsNullOrEmpty(unitAsset.UnitId) && !unitMap.ContainsKey(unitAsset.UnitId))
+                unitMap.Add(unitAsset.UnitId, unitAsset);
         }
 
-        // Rebuild units
+        foreach (UnitData unitAsset in enemyUnitAssets)
+        {
+            if (unitAsset != null && !string.IsNullOrEmpty(unitAsset.UnitId) && !unitMap.ContainsKey(unitAsset.UnitId))
+                unitMap.Add(unitAsset.UnitId, unitAsset);
+        }
+
         foreach (UnitLayoutData unitData in layoutData.units)
         {
-            if (!unitMap.TryGetValue(unitData.unitName, out UnitData unitAsset))
+            if (!unitMap.TryGetValue(unitData.unitId, out UnitData unitAsset))
             {
-                Debug.LogWarning($"Could not find unit asset: {unitData.unitName}");
+                Debug.LogWarning($"Could not find unit asset: {unitData.unitId}");
                 continue;
             }
 
@@ -250,10 +302,12 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
             Transform targetParent = unitData.team == "Enemy" ? enemyUnitParent : playerUnitParent;
 
+            Quaternion unitRotation = Quaternion.Euler(0f, unitData.rotationY, 0f);
+
             GameObject spawnedObject = Instantiate(
                 unitAsset.unitPrefab,
                 Vector3.zero,
-                Quaternion.identity,
+                unitRotation,
                 targetParent
             );
 
@@ -269,10 +323,14 @@ public class BuilderSaveLoadManager : MonoBehaviour
             gridUnit.PlaceOnTile(tile);
         }
     }
+    
+    public void ClearBuilderBeforeGridResize()
+    {
+        ClearCurrentBuilderState();
+    }
 
     private void ClearCurrentBuilderState()
     {
-        // Remove player units
         GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in playerUnits)
         {
@@ -285,7 +343,6 @@ public class BuilderSaveLoadManager : MonoBehaviour
             Destroy(unit.gameObject);
         }
 
-        // Remove enemy units
         GridUnit[] enemyUnits = enemyUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in enemyUnits)
         {
@@ -298,11 +355,12 @@ public class BuilderSaveLoadManager : MonoBehaviour
             Destroy(unit.gameObject);
         }
 
-        // Remove obstacles
         obstacleManager.ClearAllObstacles();
 
-        // Reset tiles
         GridTile[,] grid = gridManager.Grid;
+        if (grid == null)
+            return;
+
         for (int x = 0; x < gridManager.Width; x++)
         {
             for (int y = 0; y < gridManager.Height; y++)
@@ -320,4 +378,78 @@ public class BuilderSaveLoadManager : MonoBehaviour
             }
         }
     }
+
+    private int NormalizeRotationY(int rotationY)
+    {
+        rotationY %= 360;
+        if (rotationY < 0)
+            rotationY += 360;
+
+        if (rotationY >= 315 || rotationY < 45) return 0;
+        if (rotationY >= 45 && rotationY < 135) return 90;
+        if (rotationY >= 135 && rotationY < 225) return 180;
+        return 270;
+    }
+
+    private List<Vector2Int> GetRotatedFootprintOffsets(Vector2Int footprintSize, int rotationY)
+    {
+        List<Vector2Int> offsets = new List<Vector2Int>();
+
+        for (int x = 0; x < footprintSize.x; x++)
+        {
+            for (int y = 0; y < footprintSize.y; y++)
+            {
+                Vector2Int offset = new Vector2Int(x, y);
+
+                switch (NormalizeRotationY(rotationY))
+                {
+                    case 90:
+                        offset = new Vector2Int(y, -x);
+                        break;
+                    case 180:
+                        offset = new Vector2Int(-x, -y);
+                        break;
+                    case 270:
+                        offset = new Vector2Int(-y, x);
+                        break;
+                }
+
+                offsets.Add(offset);
+            }
+        }
+
+        return offsets;
+    }
+    
+    public List<string> GetAvailableLevelFileNames()
+    {
+        List<string> fileNames = new List<string>();
+
+        string folderPath = Path.Combine(Application.dataPath, "Resources", "LevelLayouts");
+
+        if (!Directory.Exists(folderPath))
+            return fileNames;
+
+        string[] files = Directory.GetFiles(folderPath, "*.json");
+
+        foreach (string filePath in files)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            fileNames.Add(fileName);
+        }
+
+        fileNames.Sort();
+        return fileNames;
+    }
+
+    public void LoadLevelByFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return;
+
+        levelFileName = fileName;
+        LoadLevel();
+    }
+    
+    
 }

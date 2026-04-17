@@ -1,9 +1,31 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class BuilderUIController : MonoBehaviour
 {
+    [Header("Save / Load")]
+    [SerializeField] private BuilderSaveLoadManager builderSaveLoadManager;
+    [SerializeField] private TMP_InputField levelFileNameInput;
+    
+    [Header("Load Level Panel")]
+    [SerializeField] private GameObject loadLevelPanel;
+    [SerializeField] private Transform levelListContainer;
+    [SerializeField] private GameObject levelListButtonPrefab;
+    
+    [SerializeField] private TMP_Text selectedLevelText;
+    [SerializeField] private Color selectedLevelButtonTextColor = Color.yellow;
+    [SerializeField] private Color normalLevelButtonTextColor = Color.white;
+
+    private Button currentSelectedLevelButton;
+
+    private string selectedLevelFileName;
+    [Header("Grid Size")]
+    [SerializeField] private GridManager gridManager;
+    [SerializeField] private TMP_InputField gridWidthInput;
+    [SerializeField] private TMP_InputField gridHeightInput;
+    
     [Header("Slider Limits")]
     [SerializeField] private int minBrushSize = 1;
     [SerializeField] private int maxBrushSize = 5;
@@ -36,6 +58,10 @@ public class BuilderUIController : MonoBehaviour
 
     private void Start()
     {
+        if (builderSaveLoadManager != null && levelFileNameInput != null)
+        {
+            levelFileNameInput.text = builderSaveLoadManager.LevelFileName;
+        }
         if (brushSizeSlider != null)
         {
             brushSizeSlider.minValue = minBrushSize;
@@ -51,8 +77,52 @@ public class BuilderUIController : MonoBehaviour
             elevationSlider.wholeNumbers = true;
             elevationSlider.value = builderStateController != null ? builderStateController.SelectedElevationValue : minElevationValue;
         }
+        
+        if (gridManager != null)
+        {
+            if (gridWidthInput != null)
+                gridWidthInput.text = gridManager.Width.ToString();
 
+            if (gridHeightInput != null)
+                gridHeightInput.text = gridManager.Height.ToString();
+        }
         RefreshUI();
+    }
+    
+    public void OnLevelFileNameChanged(string value)
+    {
+        if (builderSaveLoadManager == null)
+            return;
+
+        builderSaveLoadManager.SetLevelFileName(value);
+    }
+    
+    public void ApplyGridSizeFromUI()
+    {
+        if (gridManager == null)
+            return;
+
+        if (gridWidthInput == null || gridHeightInput == null)
+            return;
+
+        if (!int.TryParse(gridWidthInput.text, out int newWidth))
+            return;
+
+        if (!int.TryParse(gridHeightInput.text, out int newHeight))
+            return;
+
+        newWidth = Mathf.Max(1, newWidth);
+        newHeight = Mathf.Max(1, newHeight);
+
+        if (builderSaveLoadManager != null)
+            builderSaveLoadManager.ClearBuilderBeforeGridResize();
+
+        gridManager.RebuildGrid(newWidth, newHeight);
+
+        gridWidthInput.text = gridManager.Width.ToString();
+        gridHeightInput.text = gridManager.Height.ToString();
+
+        Debug.Log($"UI Grid Size changed to: {gridManager.Width} x {gridManager.Height}");
     }
 
     public void RefreshUI()
@@ -230,5 +300,105 @@ public class BuilderUIController : MonoBehaviour
         RefreshUI();
 
         Debug.Log($"UI Elevation Value changed to: {elevationValue}");
+    }
+    
+    public void OpenLoadLevelPanel()
+    {
+        if (loadLevelPanel == null || builderSaveLoadManager == null || levelListContainer == null || levelListButtonPrefab == null)
+            return;
+
+        loadLevelPanel.SetActive(true);
+        selectedLevelFileName = null;
+        currentSelectedLevelButton = null;
+        RefreshLevelListUI();
+    }
+
+    public void CloseLoadLevelPanel()
+    {
+        if (loadLevelPanel != null)
+            loadLevelPanel.SetActive(false);
+
+        selectedLevelFileName = null;
+        currentSelectedLevelButton = null;
+        UpdateSelectedLevelText();
+    }
+
+    public void RefreshLevelListUI()
+    {
+        if (builderSaveLoadManager == null || levelListContainer == null || levelListButtonPrefab == null)
+            return;
+
+        for (int i = levelListContainer.childCount - 1; i >= 0; i--)
+        {
+            Destroy(levelListContainer.GetChild(i).gameObject);
+        }
+
+        currentSelectedLevelButton = null;
+
+        List<string> fileNames = builderSaveLoadManager.GetAvailableLevelFileNames();
+
+        foreach (string fileName in fileNames)
+        {
+            GameObject buttonObject = Instantiate(levelListButtonPrefab, levelListContainer);
+
+            TMP_Text buttonText = buttonObject.GetComponentInChildren<TMP_Text>();
+            if (buttonText != null)
+                buttonText.text = fileName;
+
+            Button button = buttonObject.GetComponent<Button>();
+            if (button != null)
+            {
+                string capturedFileName = fileName;
+                TMP_Text capturedText = buttonText;
+
+                button.onClick.AddListener(() => SelectLevelFile(capturedFileName, button, capturedText));
+            }
+        }
+
+        UpdateSelectedLevelText();
+    }
+
+    public void SelectLevelFile(string fileName, Button button, TMP_Text buttonText)
+    {
+        selectedLevelFileName = fileName;
+
+        if (currentSelectedLevelButton != null)
+        {
+            TMP_Text previousText = currentSelectedLevelButton.GetComponentInChildren<TMP_Text>();
+            if (previousText != null)
+                previousText.color = normalLevelButtonTextColor;
+        }
+
+        currentSelectedLevelButton = button;
+
+        if (buttonText != null)
+            buttonText.color = selectedLevelButtonTextColor;
+
+        UpdateSelectedLevelText();
+
+        Debug.Log($"Selected level file: {selectedLevelFileName}");
+    }
+    
+    private void UpdateSelectedLevelText()
+    {
+        if (selectedLevelText == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(selectedLevelFileName))
+            selectedLevelText.text = "Selected: None";
+        else
+            selectedLevelText.text = $"Selected: {selectedLevelFileName}";
+    }
+
+    public void ConfirmLoadSelectedLevel()
+    {
+        if (builderSaveLoadManager == null || string.IsNullOrWhiteSpace(selectedLevelFileName))
+            return;
+
+        if (levelFileNameInput != null)
+            levelFileNameInput.text = selectedLevelFileName;
+
+        builderSaveLoadManager.LoadLevelByFileName(selectedLevelFileName);
+        CloseLoadLevelPanel();
     }
 }

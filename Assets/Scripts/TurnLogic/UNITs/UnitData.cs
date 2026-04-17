@@ -4,6 +4,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "NewUnitData", menuName = "Tactics/Units/Unit Data")]
 public class UnitData : ScriptableObject
 {
+    [SerializeField] private string unitId;
+    public string UnitId => unitId;
+    
     [Header("Builder / Team")]
     public UnitTeam unitTeam = UnitTeam.Player;
     
