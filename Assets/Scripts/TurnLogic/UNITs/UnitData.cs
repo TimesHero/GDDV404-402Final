@@ -4,6 +4,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "NewUnitData", menuName = "Tactics/Units/Unit Data")]
 public class UnitData : ScriptableObject
 {
+    [Header("Builder / Team")]
+    public UnitTeam unitTeam = UnitTeam.Player;
+    
     [Header("Identity")]
     public string unitName;
     [TextArea] public string description;

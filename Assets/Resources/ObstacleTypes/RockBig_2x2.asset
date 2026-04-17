@@ -12,11 +12,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96c305c8f68f8ab4396d74781d55a4cc, type: 3}
   m_Name: RockBig_2x2
   m_EditorClassIdentifier: Assembly-CSharp::ObstacleData
-  obstacleId: RockBig_2x2
-  obstaclePrefab: {fileID: 1839618126132640118, guid: 93f71de161245fb4abe5a3a2d5139404, type: 3}
+  useRotationPresets: 1
+  rotation0Preset:
+    RotationY: 0
+    VisualOffset: {x: 0.5, y: 0, z: 0.5}
+    VisualRotationEuler: {x: -90, y: 0, z: 0}
+    VisualScale: {x: 400, y: 400, z: 400}
+  rotation90Preset:
+    RotationY: 0
+    VisualOffset: {x: 0.5, y: 0, z: -0.5}
+    VisualRotationEuler: {x: -90, y: 0, z: 0}
+    VisualScale: {x: 400, y: 400, z: 400}
+  rotation180Preset:
+    RotationY: 0
+    VisualOffset: {x: -0.5, y: 0, z: -0.5}
+    VisualRotationEuler: {x: -90, y: 0, z: 0}
+    VisualScale: {x: 400, y: 400, z: 400}
+  rotation270Preset:
+    RotationY: 0
+    VisualOffset: {x: -0.5, y: 0, z: 0.5}
+    VisualRotationEuler: {x: -90, y: 0, z: 0}
+    VisualScale: {x: 400, y: 400, z: 400}
   visualOffset: {x: 0, y: 0, z: 0}
   visualRotationEuler: {x: -90, y: 0, z: 0}
   visualScale: {x: 400, y: 400, z: 400}
+  VisualAnchorOffsetFromOrigin: {x: 0, y: 0, z: 0}
+  obstacleId: RockBig_2x2
+  obstaclePrefab: {fileID: 1839618126132640118, guid: 93f71de161245fb4abe5a3a2d5139404, type: 3}
   blocksMovement: 1
   footprintSize: {x: 2, y: 2}
   paintTerrainUnderObstacle: 1

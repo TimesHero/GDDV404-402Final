@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a2f8c2a586ded1f46a500b3d8c3a7b5f, type: 3}
   m_Name: Enemy_Grunt
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
-  unitName: SUS
+  unitTeam: 0
+  unitName: SUS 2
   description: 
   role: 0
   defaultTeam: 1
@@ -21,6 +22,7 @@ MonoBehaviour:
   defense: 0
   movementPoints: 2
   attackRange: 1
+  maxClimbHeight: 1
   attackType: 0
   elementType: 0
   visionRange: 5

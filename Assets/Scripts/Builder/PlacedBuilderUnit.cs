@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class PlacedObstacle
+public class PlacedBuilderUnit
 {
-    public ObstacleData ObstacleData;
+    public GridUnit Unit;
+    public UnitData UnitData;
     public Vector2Int Origin;
-    public int RotationY;
-    public GameObject Instance;
+    public Vector2Int FootprintSize = Vector2Int.one;
     public List<GridTile> OccupiedTiles = new List<GridTile>();
 }
