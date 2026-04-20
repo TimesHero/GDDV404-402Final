@@ -7,6 +7,8 @@ using UnityEngine.UI;
 public class BattleStateManager : MonoBehaviour
 {
     [SerializeField] private TileSelector tileSelector;
+    [SerializeField] private LevelObjectiveRuntimeManager objectiveRuntimeManager;
+
     public static BattleStateManager Instance { get; private set; }
 
     [Header("UI")]
@@ -43,6 +45,9 @@ public class BattleStateManager : MonoBehaviour
         if (battleEnded)
             return;
 
+        if (objectiveRuntimeManager != null)
+            objectiveRuntimeManager.OnUnitDied(deadUnit);
+
         StartCoroutine(CheckBattleStateNextFrame());
     }
 
@@ -57,10 +62,17 @@ public class BattleStateManager : MonoBehaviour
         if (battleEnded)
             return;
 
+        if (objectiveRuntimeManager != null)
+        {
+            objectiveRuntimeManager.EvaluateObjectives();
+
+            if (battleEnded)
+                return;
+        }
+
         GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
 
         bool hasPlayer = false;
-        bool hasEnemy = false;
 
         foreach (GridUnit unit in allUnits)
         {
@@ -72,20 +84,25 @@ public class BattleStateManager : MonoBehaviour
 
             if (unit.Team == UnitTeam.Player)
                 hasPlayer = true;
-            else if (unit.Team == UnitTeam.Enemy)
-                hasEnemy = true;
         }
 
-        if (!hasEnemy)
-            EndBattle("You Win");
-        else if (!hasPlayer)
+        if (!hasPlayer)
             EndBattle("You Lose");
+    }
+
+    public void EndBattleExternally(string result)
+    {
+        if (battleEnded)
+            return;
+
+        EndBattle(result);
     }
 
     private void EndBattle(string result)
     {
         if (tileSelector != null)
             tileSelector.ForceClearSelectionAndHighlights();
+
         battleEnded = true;
 
         if (resultText != null)
@@ -101,7 +118,7 @@ public class BattleStateManager : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
-    
+
     public void ResetBattleState()
     {
         battleEnded = false;

@@ -14,6 +14,8 @@ public class BuilderUIController : MonoBehaviour
     [SerializeField] private Transform levelListContainer;
     [SerializeField] private GameObject levelListButtonPrefab;
     
+    public bool IsLoadLevelPanelOpen => loadLevelPanel != null && loadLevelPanel.activeInHierarchy;
+    
     [SerializeField] private TMP_Text selectedLevelText;
     [SerializeField] private Color selectedLevelButtonTextColor = Color.yellow;
     [SerializeField] private Color normalLevelButtonTextColor = Color.white;
@@ -42,15 +44,18 @@ public class BuilderUIController : MonoBehaviour
     [SerializeField] private Toggle obstacleToggle;
     [SerializeField] private Toggle unitToggle;
     [SerializeField] private Toggle elevationToggle;
+    [SerializeField] private Toggle interactableToggle;
     [SerializeField] private GameObject helpClosedPanel;
     [SerializeField] private GameObject helpOpenPanel;
 
     [Header("Selection Text")]
     [SerializeField] private TMP_Text terrainText;
     [SerializeField] private TMP_Text obstacleText;
+    [SerializeField] private TMP_Text interactableText;
     [SerializeField] private TMP_Text unitText;
     [SerializeField] private TMP_Text unitTeamText;
     [SerializeField] private TMP_Text brushSizeText;
+    
 
     [Header("Brush Size")]
     [SerializeField] private Slider brushSizeSlider;
@@ -138,6 +143,12 @@ public class BuilderUIController : MonoBehaviour
 
         if (obstacleText != null)
             obstacleText.text = $"Obstacle: {builderStateController.CurrentObstacleName}";
+        
+        if (interactableText != null)
+            interactableText.text = $"Interactable: {builderStateController.CurrentInteractableName}";
+        
+        if (interactableToggle != null)
+            interactableToggle.SetIsOnWithoutNotify(builderStateController.CurrentToolMode == BuilderToolMode.InteractablePaint);
 
         if (unitText != null)
             unitText.text = $"Unit: {builderStateController.CurrentUnitName}";
@@ -202,6 +213,24 @@ public class BuilderUIController : MonoBehaviour
         builderStateController.SelectPreviousUnit();
         RefreshUI();
     }
+    
+    public void NextInteractable()
+    {
+        if (builderStateController == null)
+            return;
+
+        builderStateController.SelectNextInteractable();
+        RefreshUI();
+    }
+
+    public void PreviousInteractable()
+    {
+        if (builderStateController == null)
+            return;
+
+        builderStateController.SelectPreviousInteractable();
+        RefreshUI();
+    }
 
     public void CycleUnitPaintTeam()
     {
@@ -245,6 +274,15 @@ public class BuilderUIController : MonoBehaviour
             return;
 
         builderStateController.SetToolMode(BuilderToolMode.ObstaclePaint);
+        RefreshUI();
+    }
+    
+    public void OnInteractableToggleChanged(bool isOn)
+    {
+        if (!isOn || builderStateController == null)
+            return;
+
+        builderStateController.SetToolMode(BuilderToolMode.InteractablePaint);
         RefreshUI();
     }
 

@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class TurnManager : MonoBehaviour
 {
+    [SerializeField] private LevelObjectiveRuntimeManager objectiveRuntimeManager;
+    
     [Header("Restart Turn")]
     [SerializeField] private int maxRestartTurnUses = 1;
 
@@ -275,7 +277,11 @@ public class TurnManager : MonoBehaviour
                 unit.ResetTurnState();
         }
         CapturePlayerTurnSnapshot();
+        
+        if (objectiveRuntimeManager != null)
+            objectiveRuntimeManager.OnPlayerTurnStarted();
         Debug.Log("Turn State: Player Turn");
+        
     }
     
     private void CapturePlayerTurnSnapshot()
@@ -423,9 +429,19 @@ public class TurnManager : MonoBehaviour
     public void EndTurn()
     {
         if (CurrentTurn == TurnState.PlayerTurn)
+        {
+            if (objectiveRuntimeManager != null)
+                objectiveRuntimeManager.OnPlayerTurnEnded();
+
+            if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+                return;
+
             StartEnemyTurn();
+        }
         else if (CurrentTurn == TurnState.EnemyTurn)
+        {
             StartPlayerTurn();
+        }
     }
     private void OnValidate()
     {

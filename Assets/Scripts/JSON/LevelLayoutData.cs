@@ -11,6 +11,8 @@ public class LevelLayoutData
     public List<TileLayoutData> tiles = new List<TileLayoutData>();
     public List<ObstacleLayoutData> obstacles = new List<ObstacleLayoutData>();
     public List<UnitLayoutData> units = new List<UnitLayoutData>();
+    public List<InteractableLayoutData> interactables = new List<InteractableLayoutData>();
+    public List<ObjectiveLayoutData> objectives = new List<ObjectiveLayoutData>();
 }
 
 [Serializable]
@@ -39,4 +41,36 @@ public class UnitLayoutData
     public int y;
     public int rotationY;
     public string team;
+}
+
+[Serializable]
+public class InteractableLayoutData
+{
+    public string interactableId;
+    public int x;
+    public int y;
+    public int rotationY;
+}
+
+[Serializable]
+public class ObjectiveTargetTileData
+{
+    public int x;
+    public int y;
+}
+
+[Serializable]
+public class ObjectiveLayoutData
+{
+    public WinConditionType winConditionType;
+    public int surviveTurnCount;
+
+    // Legacy single-tile support
+    public int targetX;
+    public int targetY;
+
+    public string targetInteractableId;
+
+    // New multi-tile reach support
+    public List<ObjectiveTargetTileData> targetTiles = new List<ObjectiveTargetTileData>();
 }

@@ -86,6 +86,11 @@ public class GridUnit : MonoBehaviour
         {
             currentHP = MaxHP;
         }
+        
+        if (GetComponent<HiddenStateComponent>() == null)
+        {
+            gameObject.AddComponent<HiddenStateComponent>();
+        }
     }
     
     private void Start()

@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a3b75b8e5ca90e46a3e87f0a15ab1fe, type: 3}
+  m_Name: DefaultReachTileMarkerData
+  m_EditorClassIdentifier: Assembly-CSharp::ReachTileMarkerData
+  markerPrefab: {fileID: 168292, guid: 13755b5fbb6b69b4c81b942c6e32a512, type: 3}
+  localOffset: {x: 0, y: 0, z: 0}
+  localRotationEuler: {x: -90, y: 0, z: 0}
+  localScale: {x: 0.15, y: 0.15, z: 0.15}

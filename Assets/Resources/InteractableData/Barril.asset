@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4012e7195d1c0ef43988dfc9d5b691b5, type: 3}
+  m_Name: Barril
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableData
+  interactableId: barrel_01
+  displayName: Barrel
+  interactableType: 1
+  useRotationPresets: 0
+  rotation0Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation90Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation180Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation270Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  localOffset: {x: 0, y: 0, z: 0}
+  localRotationEuler: {x: 0, y: 0, z: 0}
+  localScale: {x: 1, y: 1, z: 1}
+  prefab: {fileID: 5973337633791135258, guid: 1021f5bda3b7ef347a8a7f1455a8fa4c, type: 3}
+  footprint: {x: 1, y: 1}
+  blocksMovement: 0

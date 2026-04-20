@@ -388,5 +388,30 @@
         }
     ],
     "obstacles": [],
-    "units": []
+    "units": [
+        {
+            "unitId": "test_sus",
+            "x": 1,
+            "y": 1,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
+            "unitId": "Enemy_test2",
+            "x": 5,
+            "y": 5,
+            "rotationY": 0,
+            "team": "Enemy"
+        }
+    ],
+    "interactables": [],
+    "objectives": [
+        {
+            "winConditionType": 2,
+            "surviveTurnCount": 4,
+            "targetX": 0,
+            "targetY": 0,
+            "targetInteractableId": ""
+        }
+    ]
 }

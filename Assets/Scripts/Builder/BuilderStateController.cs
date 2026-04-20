@@ -17,16 +17,20 @@ public class BuilderStateController : MonoBehaviour
     [Header("Loaded Assets Debug")]
     [SerializeField] private TerrainTypeData[] loadedTerrainTypes;
     [SerializeField] private ObstacleData[] loadedObstacleTypes;
+    [SerializeField] private InteractableData[] loadedInteractableTypes;
 
     [Header("Selection Indices")]
     [SerializeField] private int terrainIndex = 0;
     [SerializeField] private int obstacleIndex = 0;
+    [SerializeField] private int interactableIndex = 0;
     [SerializeField] private int unitIndex = 0;
     
     [SerializeField] private int selectedObstacleRotationY = 0;
+    [SerializeField] private int selectedInteractableRotationY = 0;
     [SerializeField] private int selectedUnitRotationY = 0;
 
     public int SelectedObstacleRotationY => selectedObstacleRotationY;
+    public int SelectedInteractableRotationY => selectedInteractableRotationY;
     public int SelectedUnitRotationY => selectedUnitRotationY;
 
     public BuilderToolMode CurrentToolMode => currentToolMode;
@@ -44,6 +48,7 @@ public class BuilderStateController : MonoBehaviour
     }
 
     public ObstacleData SelectedObstacleData => GetCurrentObstacleData();
+    public InteractableData SelectedInteractableData => GetCurrentInteractableData();
 
     public UnitData SelectedUnitData
     {
@@ -76,6 +81,14 @@ public class BuilderStateController : MonoBehaviour
             return obstacleData != null ? obstacleData.name : "None";
         }
     }
+    public string CurrentInteractableName
+    {
+        get
+        {
+            InteractableData interactableData = GetCurrentInteractableData();
+            return interactableData != null ? interactableData.displayName : "None";
+        }
+    }
 
     public string CurrentUnitName
     {
@@ -96,9 +109,11 @@ public class BuilderStateController : MonoBehaviour
     {
         loadedTerrainTypes = Resources.LoadAll<TerrainTypeData>("TerrainTypes");
         loadedObstacleTypes = Resources.LoadAll<ObstacleData>("ObstacleTypes");
+        loadedInteractableTypes = Resources.LoadAll<InteractableData>("InteractableData");
 
         Debug.Log($"BuilderStateController loaded {loadedTerrainTypes.Length} terrain types.");
         Debug.Log($"BuilderStateController loaded {loadedObstacleTypes.Length} obstacle types.");
+        Debug.Log($"BuilderStateController loaded {loadedInteractableTypes.Length} interactable types.");
         Debug.Log($"BuilderStateController loaded {GetUnitsForSelectedTeam().Length} unit types for team {selectedUnitPaintTeam}.");
     }
 
@@ -234,9 +249,61 @@ public class BuilderStateController : MonoBehaviour
         obstacleIndex = Mathf.Clamp(obstacleIndex, 0, loadedObstacleTypes.Length - 1);
         return loadedObstacleTypes[obstacleIndex];
     }
+    
+    private InteractableData GetCurrentInteractableData()
+    {
+        if (loadedInteractableTypes == null || loadedInteractableTypes.Length == 0)
+            return null;
+
+        interactableIndex = Mathf.Clamp(interactableIndex, 0, loadedInteractableTypes.Length - 1);
+        return loadedInteractableTypes[interactableIndex];
+    }
+
+    public void SelectNextInteractable()
+    {
+        if (loadedInteractableTypes == null || loadedInteractableTypes.Length == 0)
+            return;
+
+        interactableIndex = (interactableIndex + 1) % loadedInteractableTypes.Length;
+        Debug.Log($"Selected Interactable set to: {CurrentInteractableName}");
+    }
+
+    public void SelectPreviousInteractable()
+    {
+        if (loadedInteractableTypes == null || loadedInteractableTypes.Length == 0)
+            return;
+
+        interactableIndex--;
+        if (interactableIndex < 0)
+            interactableIndex = loadedInteractableTypes.Length - 1;
+
+        Debug.Log($"Selected Interactable set to: {CurrentInteractableName}");
+    }
+
+    public void RotateSelectedInteractableClockwise()
+    {
+        selectedInteractableRotationY += 90;
+        if (selectedInteractableRotationY >= 360)
+            selectedInteractableRotationY = 0;
+
+        Debug.Log($"Selected Interactable Rotation set to: {selectedInteractableRotationY}");
+    }
+
+    public void RotateSelectedInteractableCounterClockwise()
+    {
+        selectedInteractableRotationY -= 90;
+        if (selectedInteractableRotationY < 0)
+            selectedInteractableRotationY = 270;
+
+        Debug.Log($"Selected Interactable Rotation set to: {selectedInteractableRotationY}");
+    }
 
     private void ClampSelectionIndices()
     {
+        if (loadedInteractableTypes != null && loadedInteractableTypes.Length > 0)
+            interactableIndex = Mathf.Clamp(interactableIndex, 0, loadedInteractableTypes.Length - 1);
+        else
+            interactableIndex = 0;
         if (loadedTerrainTypes != null && loadedTerrainTypes.Length > 0)
             terrainIndex = Mathf.Clamp(terrainIndex, 0, loadedTerrainTypes.Length - 1);
         else
@@ -258,6 +325,12 @@ public class BuilderStateController : MonoBehaviour
     {
         selectedObstacleRotationY = NormalizeRotation(rotationY);
         Debug.Log($"Selected Obstacle Rotation set to: {selectedObstacleRotationY}");
+    }
+    
+    public void SetSelectedInteractableRotationY(int rotationY)
+    {
+        selectedInteractableRotationY = NormalizeRotation(rotationY);
+        Debug.Log($"Selected Interactable Rotation set to: {selectedInteractableRotationY}");
     }
 
     public void SetSelectedUnitRotationY(int rotationY)

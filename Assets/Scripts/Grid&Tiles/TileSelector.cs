@@ -17,6 +17,7 @@ public class TileSelector : MonoBehaviour
     [SerializeField] private LayerMask tileLayerMask;
     [SerializeField] private AStarPathFinder pathFinder;
     [SerializeField] private GridRangeFinder rangeFinder;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
     
     [Header("Hover Colors")]
     [SerializeField] public Color hoverColor = Color.darkMagenta;
@@ -83,6 +84,18 @@ public class TileSelector : MonoBehaviour
     private bool IsEnemyUnit(GridUnit unit)
     {
         return unit != null && unit.Team == UnitTeam.Enemy;
+    }
+    
+    private BarrelInteractable GetBarrelOnTile(GridTile tile)
+    {
+        if (tile == null || interactablePlacementService == null)
+            return null;
+
+        PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+        if (placedInteractable == null)
+            return null;
+
+        return placedInteractable.GetComponent<BarrelInteractable>();
     }
 
     private bool HasActionsRemaining(GridUnit unit)
@@ -154,6 +167,7 @@ public class TileSelector : MonoBehaviour
         }
 
         GridUnit clickedUnit = GetUnitOnTile(currentHoveredTile);
+        BarrelInteractable clickedBarrel = GetBarrelOnTile(currentHoveredTile);
 
         if (selectedUnit == null)
         {
@@ -175,10 +189,18 @@ public class TileSelector : MonoBehaviour
             return;
         }
 
-        if (!HasActionsRemaining(selectedUnit))
+        if (clickedBarrel != null)
         {
-            Debug.Log("This unit has no actions left this turn.");
+            bool interacted = TryHandleBarrelInteraction(selectedUnit, clickedBarrel);
+
+            if (!interacted)
+            {
+                Debug.Log("Barrel interaction failed.");
+                return;
+            }
+
             DeselectUnit();
+            CheckIfAllPlayerUnitsAreDone();
             return;
         }
 
@@ -258,6 +280,53 @@ public class TileSelector : MonoBehaviour
             return;
 
         TurnManager.Instance.HandlePlayerUnitsDoneState();
+    }
+
+    private bool TryHandleBarrelInteraction(GridUnit unit, BarrelInteractable barrel)
+    {
+        if (unit == null || barrel == null)
+            return false;
+
+        GridTile barrelTile = barrel.GetBarrelTilePublic();
+        if (barrelTile == null)
+            return false;
+
+        if (unit.CurrentTile == barrelTile || barrel.HiddenUnit == unit)
+            return barrel.TryInteract(unit);
+
+        if (!barrel.CanUnitHideHere(unit))
+            return false;
+
+        if (!unit.CanMoveThisTurn())
+            return false;
+
+        if (!IsTileReachable(barrelTile))
+            return false;
+
+        List<GridTile> path = pathFinder.FindPath(unit.CurrentTile, barrelTile, unit);
+        if (path == null || path.Count <= 1)
+            return false;
+
+        barrel.PrepareForUnitEntering();
+
+        void OnFinished(GridUnit movedUnit)
+        {
+            movedUnit.OnMovementFinished -= OnFinished;
+
+            bool hiddenSuccessfully = barrel.CompleteHideAfterMove(movedUnit);
+            if (!hiddenSuccessfully)
+                Debug.LogWarning("Barrel hide completion failed after movement.");
+        }
+
+        unit.OnMovementFinished += OnFinished;
+
+        if (!unit.TryMove(new List<GridTile>(path)))
+        {
+            unit.OnMovementFinished -= OnFinished;
+            return false;
+        }
+
+        return true;
     }
     
     private void SelectUnit(GridUnit unit)

@@ -125,13 +125,13 @@
         {
             "x": 2,
             "y": 4,
-            "terrainType": "Blocked",
+            "terrainType": "Ground",
             "elevation": 0
         },
         {
             "x": 2,
             "y": 5,
-            "terrainType": "Blocked",
+            "terrainType": "Ground",
             "elevation": 0
         },
         {
@@ -173,13 +173,13 @@
         {
             "x": 3,
             "y": 4,
-            "terrainType": "Blocked",
+            "terrainType": "Ground",
             "elevation": 0
         },
         {
             "x": 3,
             "y": 5,
-            "terrainType": "Blocked",
+            "terrainType": "Ground",
             "elevation": 0
         },
         {
@@ -387,13 +387,52 @@
             "elevation": 0
         }
     ],
-    "obstacles": [
+    "obstacles": [],
+    "units": [
         {
-            "obstacleName": "RockBig_2x2",
-            "originX": 2,
-            "originY": 4,
-            "rotationY": 0
+            "unitId": "Player_sus",
+            "x": 0,
+            "y": 2,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
+            "unitId": "Player_sus",
+            "x": 0,
+            "y": 0,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
+            "unitId": "Player_sus",
+            "x": 2,
+            "y": 0,
+            "rotationY": 0,
+            "team": "Player"
         }
     ],
-    "units": []
+    "interactables": [],
+    "objectives": [
+        {
+            "winConditionType": 3,
+            "surviveTurnCount": 0,
+            "targetX": 7,
+            "targetY": 7,
+            "targetInteractableId": "",
+            "targetTiles": [
+                {
+                    "x": 7,
+                    "y": 7
+                },
+                {
+                    "x": 7,
+                    "y": 5
+                },
+                {
+                    "x": 4,
+                    "y": 4
+                }
+            ]
+        }
+    ]
 }
