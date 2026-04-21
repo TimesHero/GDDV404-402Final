@@ -55,6 +55,10 @@ public class BuilderUIController : MonoBehaviour
     [SerializeField] private TMP_Text unitText;
     [SerializeField] private TMP_Text unitTeamText;
     [SerializeField] private TMP_Text brushSizeText;
+
+    [Header("Enemy AI")]
+    [SerializeField] private TMP_Dropdown enemyBehaviorDropdown;
+    [SerializeField] private GameObject enemyBehaviorDropdownRoot;
     
 
     [Header("Brush Size")]
@@ -67,6 +71,9 @@ public class BuilderUIController : MonoBehaviour
         {
             levelFileNameInput.text = builderSaveLoadManager.LevelFileName;
         }
+
+        InitializeEnemyBehaviorDropdown();
+
         if (brushSizeSlider != null)
         {
             brushSizeSlider.minValue = minBrushSize;
@@ -158,6 +165,54 @@ public class BuilderUIController : MonoBehaviour
 
         if (brushSizeText != null)
             brushSizeText.text = $"Brush Size: {builderStateController.BrushSize}";
+
+        RefreshEnemyBehaviorDropdown();
+    }
+
+    private void InitializeEnemyBehaviorDropdown()
+    {
+        if (enemyBehaviorDropdown == null)
+            return;
+
+        enemyBehaviorDropdown.ClearOptions();
+        enemyBehaviorDropdown.AddOptions(new List<string>
+        {
+            "Static",
+            "Patrol",
+            "Random Look"
+        });
+
+        enemyBehaviorDropdown.SetValueWithoutNotify(builderStateController != null
+            ? (int)builderStateController.SelectedEnemyBehavior
+            : 0);
+    }
+
+    private void RefreshEnemyBehaviorDropdown()
+    {
+        bool shouldShow =
+            builderStateController != null &&
+            builderStateController.CurrentToolMode == BuilderToolMode.UnitPaint &&
+            builderStateController.SelectedUnitPaintTeam == BuilderUnitPaintTeam.Enemy;
+
+        if (enemyBehaviorDropdownRoot != null)
+            enemyBehaviorDropdownRoot.SetActive(shouldShow);
+
+        if (enemyBehaviorDropdown != null)
+        {
+            enemyBehaviorDropdown.interactable = shouldShow;
+
+            if (builderStateController != null)
+                enemyBehaviorDropdown.SetValueWithoutNotify((int)builderStateController.SelectedEnemyBehavior);
+        }
+    }
+
+    public void OnEnemyBehaviorDropdownChanged(int value)
+    {
+        if (builderStateController == null)
+            return;
+
+        builderStateController.SetSelectedEnemyBehavior(value);
+        RefreshUI();
     }
 
     public void NextTerrain()

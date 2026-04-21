@@ -184,7 +184,13 @@ public class BuilderSaveLoadManager : MonoBehaviour
                     y = tile.Y,
                     rotationY = NormalizeRotationY(placedUnit.RotationY),
                     useCardinalFacing = placedUnit.UseCardinalFacing,
-                    team = placedUnit.PaintTeam == BuilderUnitPaintTeam.Enemy ? "Enemy" : "Player"
+                    team = placedUnit.PaintTeam == BuilderUnitPaintTeam.Enemy ? "Enemy" : "Player",
+                    enemyBehavior = placedUnit.EnemyBehavior,
+                    hasPatrolRoute = placedUnit.HasPatrolRoute,
+                    patrolStartX = placedUnit.PatrolStart.x,
+                    patrolStartY = placedUnit.PatrolStart.y,
+                    patrolEndX = placedUnit.PatrolEnd.x,
+                    patrolEndY = placedUnit.PatrolEnd.y
                 };
 
                 layoutData.units.Add(unitData);
@@ -215,7 +221,11 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 y = unit.CurrentTile.Y,
                 rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y)),
                 useCardinalFacing = false,
-                team = team
+                team = team,
+                enemyBehavior = EnemyAIBehavior.Static,
+                hasPatrolRoute = false,
+                patrolStartX = unit.CurrentTile.X,
+                patrolStartY = unit.CurrentTile.Y
             };
 
             layoutData.units.Add(unitData);
@@ -356,12 +366,31 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 tile,
                 unitData.rotationY,
                 team,
-                unitData.useCardinalFacing
+                unitData.useCardinalFacing,
+                out PlacedBuilderUnit placedUnit
             );
 
             if (!placed)
             {
                 Debug.LogWarning($"Failed to load unit '{unitData.unitId}' at ({unitData.x}, {unitData.y})");
+                continue;
+            }
+
+            if (placedUnit != null)
+            {
+                placedUnit.EnemyBehavior = unitData.team == "Enemy"
+                    ? unitData.enemyBehavior
+                    : EnemyAIBehavior.Static;
+                placedUnit.HasPatrolRoute = unitData.team == "Enemy" && unitData.hasPatrolRoute;
+                placedUnit.PatrolStart = new Vector2Int(unitData.patrolStartX, unitData.patrolStartY);
+                placedUnit.PatrolEnd = new Vector2Int(unitData.patrolEndX, unitData.patrolEndY);
+
+                if (placedUnit.HasPatrolRoute && unitPlacementService != null)
+                {
+                    GridTile patrolEndTile = gridManager.GetTileAt(placedUnit.PatrolEnd);
+                    if (patrolEndTile != null)
+                        unitPlacementService.CreatePatrolEndMarker(placedUnit, patrolEndTile);
+                }
             }
         }
     }
@@ -373,6 +402,8 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
     private void ClearCurrentBuilderState()
     {
+        DestroyBuilderPatrolEndMarkers();
+
         GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in playerUnits)
         {
@@ -424,6 +455,19 @@ public class BuilderSaveLoadManager : MonoBehaviour
                     tileElevation.SetElevation(0);
             }
         }
+    }
+
+    private void DestroyBuilderPatrolEndMarkers()
+    {
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        if (builderUnitRegistry == null || unitPlacementService == null)
+            return;
+
+        IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+        foreach (PlacedBuilderUnit placedUnit in placedUnits)
+            unitPlacementService.DestroyPatrolEndMarker(placedUnit);
     }
 
     private int NormalizeRotationY(int rotationY)

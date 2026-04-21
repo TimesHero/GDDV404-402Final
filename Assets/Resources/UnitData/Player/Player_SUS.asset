@@ -16,13 +16,15 @@ MonoBehaviour:
   unitTeam: 0
   unitName: Amongus
   maxHP: 10
-  attackPower: 4
+  attackPower: 5
   defense: 0
   movementPoints: 5
   attackRange: 1
+  canAttackMultipleTimesPerTurn: 0
+  attacksPerTurn: 1
   canBackstab: 1
   backstabDamageMultiplier: 2
-  backstabBonusDamage: 0
+  backstabBonusDamage: 1
   maxClimbHeight: 5
   canHideInBarrel: 1
   hiddenMovementPreset: 2

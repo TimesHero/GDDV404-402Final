@@ -14,6 +14,17 @@ public class EnemyController : MonoBehaviour
     [Header("References")]
     [SerializeField] private GridUnit controlledUnit;
     [SerializeField] private AStarPathFinder pathFinder;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+    [SerializeField] private EnemyStateFeedbackController stateFeedbackController;
+
+    [Header("State Machine")]
+    [SerializeField] private EnemyAIState defaultState = EnemyAIState.Idle;
+    [SerializeField] private EnemyAIState currentState = EnemyAIState.Idle;
+    [SerializeField] private EnemyAIBehavior configuredBehavior = EnemyAIBehavior.Static;
+    [SerializeField] private bool hasPatrolRoute;
+    [SerializeField] private Vector2Int patrolStartGridPosition;
+    [SerializeField] private Vector2Int patrolEndGridPosition;
+    [SerializeField] private bool logStateChanges = true;
 
     [Header("Investigation")]
     [SerializeField] private GridUnit rememberedTargetUnit;
@@ -26,10 +37,13 @@ public class EnemyController : MonoBehaviour
     [SerializeField, Min(1)] private int maxBarrelsToSearchInOneTurn = 8;
     [SerializeField, Min(1f)] private float barrelSearchMovementTimeout = 8f;
     private bool barrelSearchInterruptedByMovingTarget;
+    private bool patrolHeadingToEnd = true;
+    private bool pendingPatrolDestinationFlip;
 
     public bool LastActionWasMovement { get; private set; }
     public bool IsInvestigationScanRunning { get; private set; }
     public bool IsActionAnimationRunning { get; private set; }
+    public EnemyAIState CurrentState => currentState;
 
     public void ForceClearActionAnimationWait()
     {
@@ -55,12 +69,127 @@ public class EnemyController : MonoBehaviour
         if (gridManager == null)
             gridManager = FindFirstObjectByType<GridManager>();
 
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+
+        if (stateFeedbackController == null)
+            stateFeedbackController = GetComponent<EnemyStateFeedbackController>();
+
         if (GetComponent<EnemyVisionDetector>() == null)
             Debug.LogError($"{name} is missing EnemyVisionDetector. Add it on the prefab before play.");
+
+        currentState = GetCalmState();
+    }
+
+    public void ConfigureBehavior(EnemyAIBehavior behavior, bool patrolRouteEnabled, Vector2Int patrolStart, Vector2Int patrolEnd)
+    {
+        configuredBehavior = behavior;
+        hasPatrolRoute = behavior == EnemyAIBehavior.Patrol && patrolRouteEnabled && patrolStart != patrolEnd;
+        patrolStartGridPosition = patrolStart;
+        patrolEndGridPosition = patrolEnd;
+        patrolHeadingToEnd = true;
+
+        defaultState = hasPatrolRoute ? EnemyAIState.Patrol : EnemyAIState.Idle;
+        SetState(GetCalmState());
+    }
+
+    public bool TryTakeTurn(GridUnit visibleTarget)
+    {
+        EnemyAIState nextState = ResolveTurnState(visibleTarget);
+        SetState(nextState);
+
+        switch (currentState)
+        {
+            case EnemyAIState.Combat:
+                if (visibleTarget == null)
+                {
+                    SetState(EnemyAIState.Investigate);
+                    return TryInvestigate();
+                }
+
+                return TryAct(visibleTarget);
+
+            case EnemyAIState.SearchBarrels:
+                BarrelInteractable barrelTarget = GetPriorityVisibleBarrelTarget();
+                if (barrelTarget == null)
+                {
+                    SetState(EnemyAIState.Investigate);
+                    return TryInvestigate();
+                }
+
+                return TrySearchVisibleBarrels(barrelTarget);
+
+            case EnemyAIState.Investigate:
+                return TryInvestigate();
+
+            case EnemyAIState.Alert:
+                if (HasInvestigationTarget())
+                {
+                    SetState(EnemyAIState.Investigate);
+                    return TryInvestigate();
+                }
+
+                SetState(GetCalmState());
+                return false;
+
+            case EnemyAIState.Patrol:
+                return TryPatrol();
+
+            case EnemyAIState.Idle:
+                if (configuredBehavior == EnemyAIBehavior.RandomLook)
+                    return TryRandomLook();
+
+                return false;
+
+            case EnemyAIState.ReturnToPost:
+            default:
+                return false;
+        }
+    }
+
+    private EnemyAIState ResolveTurnState(GridUnit visibleTarget)
+    {
+        if (visibleTarget != null)
+            return EnemyAIState.Combat;
+
+        if (GetPriorityVisibleBarrelTarget() != null)
+            return EnemyAIState.SearchBarrels;
+
+        if (HasInvestigationTarget())
+            return EnemyAIState.Investigate;
+
+        return GetCalmState();
+    }
+
+    private EnemyAIState GetCalmState()
+    {
+        if (configuredBehavior == EnemyAIBehavior.Patrol && hasPatrolRoute)
+            return EnemyAIState.Patrol;
+
+        if (defaultState == EnemyAIState.Patrol && hasPatrolRoute)
+            return EnemyAIState.Patrol;
+
+        return EnemyAIState.Idle;
+    }
+
+    private void SetState(EnemyAIState nextState)
+    {
+        if (currentState == nextState)
+            return;
+
+        EnemyAIState previousState = currentState;
+        currentState = nextState;
+
+        if (logStateChanges)
+            Debug.Log($"{name} AI State: {previousState} -> {currentState}");
+
+        if (Application.isPlaying && stateFeedbackController != null)
+            stateFeedbackController.PlayStateEntered(currentState, controlledUnit != null ? controlledUnit.transform : transform);
     }
 
     public bool TryAct(GridUnit playerUnit)
     {
+        SetState(EnemyAIState.Combat);
         LastActionWasMovement = false;
         pendingAttackTarget = null;
         pendingBarrelTarget = null;
@@ -94,6 +223,7 @@ public class EnemyController : MonoBehaviour
         }
 
         RememberTarget(playerUnit);
+        SetState(EnemyAIState.Combat);
 
         int attackScore = ScoreAttackOption(playerUnit);
         if (TryGetBestPushPlan(playerUnit, out EnemyPushPlan pushPlan) && pushPlan.Score > attackScore)
@@ -166,10 +296,28 @@ public class EnemyController : MonoBehaviour
                pendingPushTarget == unit;
     }
 
+    public GridUnit RefreshAwarenessFromCurrentFacing()
+    {
+        GridUnit visibleTarget = GetVisiblePlayerInCurrentFacing();
+        if (visibleTarget == null)
+            return null;
+
+        RememberTarget(visibleTarget);
+        Debug.Log($"{controlledUnit.name} spotted {visibleTarget.name} while looking.");
+        return visibleTarget;
+    }
+
     public void RememberTarget(GridUnit targetUnit)
     {
         if (targetUnit == null || targetUnit.CurrentTile == null)
             return;
+
+        bool shouldShowAlertFeedback =
+            rememberedTargetUnit != targetUnit ||
+            lastKnownTargetTile == null ||
+            currentState == EnemyAIState.Idle ||
+            currentState == EnemyAIState.Patrol ||
+            currentState == EnemyAIState.ReturnToPost;
 
         if (lastKnownTargetTile != null && targetUnit.CurrentTile != lastKnownTargetTile)
         {
@@ -188,6 +336,8 @@ public class EnemyController : MonoBehaviour
         lastKnownTargetTile = targetUnit.CurrentTile;
         HiddenStateComponent hiddenState = targetUnit.GetComponent<HiddenStateComponent>();
         RegisterObservedBarrelPosition(hiddenState != null ? hiddenState.CurrentBarrel : null);
+        if (shouldShowAlertFeedback)
+            SetState(EnemyAIState.Alert);
         lookDirectionIndex = 0;
     }
 
@@ -208,12 +358,14 @@ public class EnemyController : MonoBehaviour
         RegisterObservedBarrelPosition(hiddenState.CurrentBarrel);
         prioritizeLastKnownBarrelMovement = true;
         barrelSearchInterruptedByMovingTarget = true;
+        SetState(EnemyAIState.Alert);
 
         Debug.Log($"{controlledUnit.name} saw a barrel move and is prioritizing its last known path.");
     }
 
     public bool TryInvestigate()
     {
+        SetState(EnemyAIState.Investigate);
         LastActionWasMovement = false;
         pendingAttackTarget = null;
         pendingBarrelTarget = null;
@@ -266,6 +418,7 @@ public class EnemyController : MonoBehaviour
 
     public bool TryActAgainstBarrel(BarrelInteractable barrel)
     {
+        SetState(EnemyAIState.SearchBarrels);
         LastActionWasMovement = false;
         pendingAttackTarget = null;
         pendingBarrelTarget = null;
@@ -316,6 +469,7 @@ public class EnemyController : MonoBehaviour
 
     public bool TrySearchVisibleBarrels(BarrelInteractable firstBarrel = null)
     {
+        SetState(EnemyAIState.SearchBarrels);
         LastActionWasMovement = false;
         pendingAttackTarget = null;
         pendingBarrelTarget = null;
@@ -337,6 +491,102 @@ public class EnemyController : MonoBehaviour
 
         StartCoroutine(SearchVisibleBarrelsRoutine(firstTarget));
         return true;
+    }
+
+    private bool TryPatrol()
+    {
+        LastActionWasMovement = false;
+        pendingAttackTarget = null;
+        pendingBarrelTarget = null;
+        pendingPushTarget = null;
+        pendingInvestigationScanAfterMove = false;
+        pendingPatrolDestinationFlip = false;
+
+        if (!hasPatrolRoute || controlledUnit == null || controlledUnit.IsDead || controlledUnit.CurrentTile == null || pathFinder == null)
+            return false;
+
+        if (controlledUnit.IsMoving || !controlledUnit.CanMoveThisTurn())
+            return false;
+
+        GridTile destinationTile = GetCurrentPatrolDestinationTile();
+        if (destinationTile == null)
+            return false;
+
+        if (controlledUnit.CurrentTile == destinationTile)
+        {
+            FlipPatrolDestination();
+            destinationTile = GetCurrentPatrolDestinationTile();
+
+            if (destinationTile == null || controlledUnit.CurrentTile == destinationTile)
+                return false;
+        }
+
+        if (destinationTile.isOccupied && destinationTile != controlledUnit.CurrentTile)
+            return false;
+
+        List<GridTile> fullPath = pathFinder.FindPath(
+            controlledUnit.CurrentTile,
+            destinationTile,
+            controlledUnit,
+            true
+        );
+        if (fullPath == null || fullPath.Count <= 1)
+            return false;
+
+        List<GridTile> trimmedPath = TrimPathByMovementBudget(fullPath, controlledUnit);
+        if (trimmedPath == null || trimmedPath.Count <= 1)
+            return false;
+
+        GridTile finalTile = trimmedPath[trimmedPath.Count - 1];
+        pendingPatrolDestinationFlip = finalTile == destinationTile;
+
+        controlledUnit.OnMovementFinished -= HandleMovementFinished;
+        controlledUnit.OnMovementFinished += HandleMovementFinished;
+
+        if (!controlledUnit.TryMove(trimmedPath))
+        {
+            controlledUnit.OnMovementFinished -= HandleMovementFinished;
+            pendingPatrolDestinationFlip = false;
+            return false;
+        }
+
+        LastActionWasMovement = true;
+        Debug.Log($"{controlledUnit.name} is patrolling toward {destinationTile.GridPosition}.");
+        return true;
+    }
+
+    private bool TryRandomLook()
+    {
+        if (controlledUnit == null || controlledUnit.IsDead || controlledUnit.IsMoving)
+            return false;
+
+        Vector3[] directions =
+        {
+            Vector3.forward,
+            Vector3.right,
+            Vector3.back,
+            Vector3.left
+        };
+
+        FaceWorldDirection(directions[Random.Range(0, directions.Length)]);
+        RefreshAwarenessFromCurrentFacing();
+        LastActionWasMovement = false;
+        Debug.Log($"{controlledUnit.name} looks around randomly.");
+        return true;
+    }
+
+    private GridTile GetCurrentPatrolDestinationTile()
+    {
+        if (gridManager == null)
+            return null;
+
+        Vector2Int destination = patrolHeadingToEnd ? patrolEndGridPosition : patrolStartGridPosition;
+        return gridManager.GetTileAt(destination);
+    }
+
+    private void FlipPatrolDestination()
+    {
+        patrolHeadingToEnd = !patrolHeadingToEnd;
     }
 
     private List<GridTile> TrimPathByMovementBudget(List<GridTile> fullPath, GridUnit unit)
@@ -992,6 +1242,7 @@ public class EnemyController : MonoBehaviour
         barrelSearchInterruptedByMovingTarget = false;
         lookDirectionIndex = 0;
         lastSeenMovementDirection = Vector3.zero;
+        SetState(GetCalmState());
         LevelObjectiveRuntimeManager.RefreshPlayerSeenState();
     }
 
@@ -1396,7 +1647,42 @@ public class EnemyController : MonoBehaviour
         {
             pendingInvestigationScanAfterMove = false;
             StartCoroutine(ScanAllDirectionsAndReactRoutine());
+            return;
         }
+
+        if (pendingPatrolDestinationFlip)
+        {
+            pendingPatrolDestinationFlip = false;
+            DestroyInteractableAtCurrentTile();
+            FlipPatrolDestination();
+            SetState(GetCalmState());
+        }
+    }
+
+    private void DestroyInteractableAtCurrentTile()
+    {
+        if (controlledUnit == null || controlledUnit.CurrentTile == null)
+            return;
+
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+
+        if (interactablePlacementService == null)
+            return;
+
+        GridTile tile = controlledUnit.CurrentTile;
+        PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+        if (placedInteractable == null)
+            return;
+
+        BarrelInteractable barrel = placedInteractable.GetComponent<BarrelInteractable>();
+        if (barrel != null)
+            barrel.BreakOpenByEnemySearch();
+        else
+            interactablePlacementService.RemoveInteractableAtTile(tile);
+
+        tile.SetOccupant(controlledUnit.gameObject);
+        Debug.Log($"{controlledUnit.name} destroyed an interactable on its patrol point.");
     }
 
     public static void NotifyEnemiesOfVisiblePlayer(GridUnit playerUnit)

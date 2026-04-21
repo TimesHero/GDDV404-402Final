@@ -34,6 +34,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
     private void Start()
     {
         PopulateObjectiveDropdown();
+        ClearRegistryForFreshBuilderSession();
         LoadFromRegistryIntoUI();
         RefreshAllUI();
     }
@@ -59,6 +60,46 @@ public class BuilderObjectiveUIController : MonoBehaviour
         };
 
         objectiveTypeDropdown.AddOptions(options);
+    }
+
+    private void ClearRegistryForFreshBuilderSession()
+    {
+        if (objectiveRegistry == null)
+            return;
+
+        objectiveRegistry.ClearObjectives();
+        objectiveRegistry.SetLoseWhenSeen(false);
+        selectedObjectiveIndex = -1;
+        stagedReachTiles.Clear();
+
+        if (loseWhenSeenToggle != null)
+            loseWhenSeenToggle.SetIsOnWithoutNotify(false);
+    }
+
+    private int FindReplaceableObjectiveIndex(List<LevelObjectiveData> objectives, WinConditionType newType)
+    {
+        if (objectives == null)
+            return -1;
+
+        for (int i = 0; i < objectives.Count; i++)
+        {
+            LevelObjectiveData existingObjective = objectives[i];
+            if (existingObjective == null)
+                continue;
+
+            if (AreEquivalentObjectiveSlots(existingObjective.winConditionType, newType))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private bool AreEquivalentObjectiveSlots(WinConditionType existingType, WinConditionType newType)
+    {
+        if (IsReachObjectiveType(existingType) && IsReachObjectiveType(newType))
+            return true;
+
+        return existingType == newType;
     }
 
     public void AddSelectedReachTile()
@@ -114,9 +155,19 @@ public class BuilderObjectiveUIController : MonoBehaviour
             ? new List<LevelObjectiveData>(objectives)
             : new List<LevelObjectiveData>();
 
-        objectives.Add(objective);
+        int replacementIndex = FindReplaceableObjectiveIndex(objectives, objective.winConditionType);
+        if (replacementIndex >= 0)
+        {
+            objectives[replacementIndex] = objective;
+            selectedObjectiveIndex = replacementIndex;
+        }
+        else
+        {
+            objectives.Add(objective);
+            selectedObjectiveIndex = objectives.Count - 1;
+        }
+
         objectiveRegistry.SetObjectives(objectives);
-        selectedObjectiveIndex = objectives.Count - 1;
 
         RefreshAllUI();
     }

@@ -12,7 +12,7 @@ public class AStarPathFinder : MonoBehaviour
             interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
     }
 
-    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit)
+    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit, bool allowInteractableTarget = false)
     {
         if (startTile == null || targetTile == null || unit == null)
             return null;
@@ -54,7 +54,7 @@ public class AStarPathFinder : MonoBehaviour
                 if (neighborTile.isOccupied && neighborTile != targetTile)
                     continue;
 
-                if (ShouldTreatTileAsBlockedByInteractable(neighborTile, targetTile, unit))
+                if (ShouldTreatTileAsBlockedByInteractable(neighborTile, targetTile, unit, allowInteractableTarget))
                     continue;
 
                 if (!CanTraverseElevation(currentNode.Tile, neighborTile, unit))
@@ -85,13 +85,16 @@ public class AStarPathFinder : MonoBehaviour
         return null;
     }
 
-    private bool ShouldTreatTileAsBlockedByInteractable(GridTile tile, GridTile targetTile, GridUnit unit)
+    private bool ShouldTreatTileAsBlockedByInteractable(GridTile tile, GridTile targetTile, GridUnit unit, bool allowInteractableTarget)
     {
         if (tile == null || unit == null || interactablePlacementService == null)
             return false;
 
         PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
         if (placedInteractable == null)
+            return false;
+
+        if (allowInteractableTarget && tile == targetTile)
             return false;
 
         BarrelInteractable barrel = placedInteractable.GetComponent<BarrelInteractable>();

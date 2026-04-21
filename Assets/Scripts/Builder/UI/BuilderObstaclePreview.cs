@@ -13,6 +13,9 @@ public class BuilderObstaclePreview : MonoBehaviour
     [SerializeField] private Material previewMaterial;
     [SerializeField] private Color previewColor = new Color(0.3f, 0.7f, 1f, 0.35f);
 
+    public Material PreviewMaterial => previewMaterial;
+    public Color PreviewColor => previewColor;
+
     private GameObject currentPreviewInstance;
     private Object currentPreviewSource;
     private BuilderToolMode currentPreviewMode;
@@ -33,6 +36,12 @@ public class BuilderObstaclePreview : MonoBehaviour
 
         GridTile hoveredTile = builderInputController.CurrentHoveredTile;
         if (hoveredTile == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        if (builderInputController.IsPickingObjectiveTile || builderInputController.IsPickingEnemyPatrolEndTile)
         {
             HidePreview();
             return;

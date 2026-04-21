@@ -43,6 +43,12 @@ public class UnitLayoutData
     public int rotationY;
     public bool useCardinalFacing;
     public string team;
+    public EnemyAIBehavior enemyBehavior;
+    public bool hasPatrolRoute;
+    public int patrolStartX;
+    public int patrolStartY;
+    public int patrolEndX;
+    public int patrolEndY;
 }
 
 [Serializable]

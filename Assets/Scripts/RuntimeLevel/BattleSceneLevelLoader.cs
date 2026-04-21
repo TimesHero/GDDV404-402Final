@@ -368,16 +368,25 @@ public class BattleSceneLevelLoader : MonoBehaviour
                 originTile,
                 unitData.rotationY,
                 unitData.useCardinalFacing,
-                isEnemy ? enemyUnitParent : playerUnitParent
+                isEnemy ? enemyUnitParent : playerUnitParent,
+                out GridUnit spawnedUnit
             );
 
             if (!placed)
+            {
                 Debug.LogWarning($"BattleSceneLevelLoader: Failed to place unit '{unitData.unitId}'.");
+                continue;
+            }
+
+            if (isEnemy)
+                ConfigureEnemyAI(spawnedUnit, unitData);
         }
     }
 
-    private bool TryPlaceBattleUnit(UnitData unitData, GridTile originTile, int rotationY, bool useCardinalFacing, Transform parent)
+    private bool TryPlaceBattleUnit(UnitData unitData, GridTile originTile, int rotationY, bool useCardinalFacing, Transform parent, out GridUnit spawnedUnit)
     {
+        spawnedUnit = null;
+
         if (unitData == null || unitData.unitPrefab == null || originTile == null || parent == null)
             return false;
 
@@ -412,7 +421,25 @@ public class BattleSceneLevelLoader : MonoBehaviour
         foreach (GridTile tile in footprintTiles)
             tile.SetOccupant(gridUnit.gameObject);
 
+        spawnedUnit = gridUnit;
         return true;
+    }
+
+    private void ConfigureEnemyAI(GridUnit spawnedUnit, UnitLayoutData unitData)
+    {
+        if (spawnedUnit == null || unitData == null)
+            return;
+
+        EnemyController enemyController = spawnedUnit.GetComponent<EnemyController>();
+        if (enemyController == null)
+            return;
+
+        enemyController.ConfigureBehavior(
+            unitData.enemyBehavior,
+            unitData.hasPatrolRoute,
+            new Vector2Int(unitData.patrolStartX, unitData.patrolStartY),
+            new Vector2Int(unitData.patrolEndX, unitData.patrolEndY)
+        );
     }
 
     private void ApplyBattleUnitRotation(GridUnit gridUnit, UnitData unitData, int rotationY, bool useCardinalFacing)

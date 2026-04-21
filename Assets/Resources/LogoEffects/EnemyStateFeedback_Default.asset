@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd5be96f4c73b9941a9ccca698bd5067, type: 3}
+  m_Name: EnemyStateFeedback_Default
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyStateFeedbackData
+  entries:
+  - state: 2
+    effectPrefab: {fileID: 2207393377758963266, guid: 758500c54eb51b34aae5715da4a8bc4c, type: 3}
+    positionOffset: {x: 0, y: 1.5, z: 0}
+    rotationEuler: {x: 0, y: 0, z: 0}
+    effectScale: {x: 0.2, y: 0.2, z: 0.2}
+    attachToSource: 1
+    duration: 1
+    liftDuration: 1
+    riseAmount: 0.3
+    musicClip: {fileID: 8300000, guid: 7f6e2f2ec3e905b46b28521c0a4fe28d, type: 3}
+    musicVolume: 0.377
+    loopMusic: 0
+    restartIfAlreadyPlaying: 0
+  - state: 3
+    effectPrefab: {fileID: 7658890190790326409, guid: 51109590b89b0354f8d9be87bcb8bc2f, type: 3}
+    positionOffset: {x: 0, y: 1.5, z: 0}
+    rotationEuler: {x: 0, y: 90, z: 0}
+    effectScale: {x: 4, y: 4, z: 4}
+    attachToSource: 1
+    duration: 1
+    liftDuration: 1
+    riseAmount: 0.3
+    musicClip: {fileID: 8300000, guid: 3521750d9c9e7e5489694965f616b536, type: 3}
+    musicVolume: 0.874
+    loopMusic: 0
+    restartIfAlreadyPlaying: 0

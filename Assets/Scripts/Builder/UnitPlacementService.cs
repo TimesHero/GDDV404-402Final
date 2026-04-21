@@ -8,8 +8,22 @@ public class UnitPlacementService : MonoBehaviour
     [SerializeField] private Transform playerUnitParent;
     [SerializeField] private Transform enemyUnitParent;
 
+    [Header("Builder Patrol Marker")]
+    [SerializeField] private Transform patrolMarkerParent;
+    [Tooltip("Assign the same material used by BuilderObstaclePreview to make patrol end markers look exactly like normal builder previews.")]
+    [SerializeField] private Material patrolEndMarkerMaterial;
+    [SerializeField] private Color patrolEndMarkerColor = new Color(0.3f, 0.7f, 1f, 0.35f);
+    [SerializeField] private BuilderObstaclePreview builderObstaclePreview;
+
     public bool TryPlaceUnit(UnitData unitData, GridTile originTile, int rotationY, BuilderUnitPaintTeam team, bool useCardinalFacing = false)
     {
+        return TryPlaceUnit(unitData, originTile, rotationY, team, useCardinalFacing, out _);
+    }
+
+    public bool TryPlaceUnit(UnitData unitData, GridTile originTile, int rotationY, BuilderUnitPaintTeam team, bool useCardinalFacing, out PlacedBuilderUnit placedBuilderUnit)
+    {
+        placedBuilderUnit = null;
+
         if (unitData == null || unitData.unitPrefab == null || originTile == null || gridManager == null)
             return false;
 
@@ -53,23 +67,25 @@ public class UnitPlacementService : MonoBehaviour
             tile.SetOccupant(gridUnit.gameObject);
         }
 
-        PlacedBuilderUnit placedBuilderUnit = new PlacedBuilderUnit
+        PlacedBuilderUnit newPlacedBuilderUnit = new PlacedBuilderUnit
         {
             Unit = gridUnit,
             UnitData = unitData,
             PaintTeam = team,
             Origin = originTile.GridPosition,
+            PatrolStart = originTile.GridPosition,
             FootprintSize = unitData.footprintSize,
             RotationY = normalizedRotation,
             UseCardinalFacing = useCardinalFacing
         };
 
-        placedBuilderUnit.OccupiedTiles.Clear();
-        placedBuilderUnit.OccupiedTiles.AddRange(footprintTiles);
+        newPlacedBuilderUnit.OccupiedTiles.Clear();
+        newPlacedBuilderUnit.OccupiedTiles.AddRange(footprintTiles);
 
         if (builderUnitRegistry != null)
-            builderUnitRegistry.RegisterPlacedUnit(placedBuilderUnit);
+            builderUnitRegistry.RegisterPlacedUnit(newPlacedBuilderUnit);
 
+        placedBuilderUnit = newPlacedBuilderUnit;
         return true;
     }
     
@@ -178,7 +194,137 @@ public class UnitPlacementService : MonoBehaviour
         if (useCardinalFacing)
             gridUnit.RestoreVisualRotation(Quaternion.Euler(0f, normalizedRotation, 0f));
     }
-    
+
+    public bool CreatePatrolEndMarker(PlacedBuilderUnit placedUnit, GridTile endTile)
+    {
+        if (placedUnit == null || placedUnit.UnitData == null || placedUnit.UnitData.unitPrefab == null || endTile == null)
+            return false;
+
+        DestroyPatrolEndMarker(placedUnit);
+
+        Transform parent = patrolMarkerParent != null
+            ? patrolMarkerParent
+            : enemyUnitParent;
+
+        GameObject markerRoot = new GameObject($"{placedUnit.UnitData.unitName}_PatrolEndMarker");
+        markerRoot.transform.SetParent(parent, false);
+
+        GameObject markerVisual = Instantiate(placedUnit.UnitData.unitPrefab, markerRoot.transform);
+        markerVisual.name = $"{placedUnit.UnitData.unitPrefab.name}_PatrolEndPreview";
+
+        GridUnit markerUnit = markerVisual.GetComponent<GridUnit>();
+        if (markerUnit != null)
+            ApplyUnitRotation(markerUnit, placedUnit.UnitData, placedUnit.RotationY, placedUnit.UseCardinalFacing);
+        else
+            markerVisual.transform.rotation = Quaternion.Euler(
+                placedUnit.UnitData.GetVisualRotationEulerForRotation(placedUnit.RotationY, placedUnit.UseCardinalFacing)
+            );
+
+        markerVisual.transform.position = GetPreviewWorldPosition(placedUnit.UnitData, endTile, placedUnit.RotationY);
+        markerVisual.transform.localScale = placedUnit.UnitData.GetVisualScaleForRotation(placedUnit.RotationY);
+
+        DisableMarkerGameplay(markerVisual);
+        ApplyPatrolEndMarkerVisual(markerVisual);
+
+        placedUnit.PatrolEndMarker = markerRoot;
+        endTile.SetOccupant(markerRoot);
+        return true;
+    }
+
+    public void DestroyPatrolEndMarker(PlacedBuilderUnit placedUnit)
+    {
+        if (placedUnit == null || placedUnit.PatrolEndMarker == null)
+            return;
+
+        ClearMarkerOccupancy(placedUnit.PatrolEndMarker);
+        Destroy(placedUnit.PatrolEndMarker);
+        placedUnit.PatrolEndMarker = null;
+    }
+
+    private void DisableMarkerGameplay(GameObject markerVisual)
+    {
+        if (markerVisual == null)
+            return;
+
+        Collider[] colliders = markerVisual.GetComponentsInChildren<Collider>(true);
+        foreach (Collider collider in colliders)
+            collider.enabled = false;
+
+        Behaviour[] behaviours = markerVisual.GetComponentsInChildren<Behaviour>(true);
+        foreach (Behaviour behaviour in behaviours)
+            behaviour.enabled = false;
+    }
+
+    private void ApplyPatrolEndMarkerVisual(GameObject markerVisual)
+    {
+        if (markerVisual == null)
+            return;
+
+        Renderer[] renderers = markerVisual.GetComponentsInChildren<Renderer>(true);
+        Material resolvedPreviewMaterial = ResolvePatrolEndMarkerMaterial();
+        Color resolvedPreviewColor = ResolvePatrolEndMarkerColor();
+
+        foreach (Renderer renderer in renderers)
+        {
+            if (resolvedPreviewMaterial != null)
+            {
+                Material[] mats = new Material[renderer.sharedMaterials.Length];
+                for (int i = 0; i < mats.Length; i++)
+                    mats[i] = resolvedPreviewMaterial;
+
+                renderer.materials = mats;
+            }
+
+            foreach (Material mat in renderer.materials)
+            {
+                if (mat.HasProperty("_BaseColor"))
+                    mat.SetColor("_BaseColor", resolvedPreviewColor);
+                else if (mat.HasProperty("_Color"))
+                    mat.SetColor("_Color", resolvedPreviewColor);
+            }
+
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+    }
+
+    private Material ResolvePatrolEndMarkerMaterial()
+    {
+        if (patrolEndMarkerMaterial != null)
+            return patrolEndMarkerMaterial;
+
+        if (builderObstaclePreview == null)
+            builderObstaclePreview = FindFirstObjectByType<BuilderObstaclePreview>();
+
+        return builderObstaclePreview != null ? builderObstaclePreview.PreviewMaterial : null;
+    }
+
+    private Color ResolvePatrolEndMarkerColor()
+    {
+        if (builderObstaclePreview == null)
+            builderObstaclePreview = FindFirstObjectByType<BuilderObstaclePreview>();
+
+        return builderObstaclePreview != null
+            ? builderObstaclePreview.PreviewColor
+            : patrolEndMarkerColor;
+    }
+
+    private void ClearMarkerOccupancy(GameObject marker)
+    {
+        if (marker == null || gridManager == null || gridManager.Grid == null)
+            return;
+
+        for (int x = 0; x < gridManager.Width; x++)
+        {
+            for (int y = 0; y < gridManager.Height; y++)
+            {
+                GridTile tile = gridManager.Grid[x, y];
+                if (tile != null && tile.OccupyingUnit == marker)
+                    tile.SetOccupant(null);
+            }
+        }
+    }
+     
     private Vector3 GetTileTopCenter(GridTile tile)
     {
         if (tile == null)

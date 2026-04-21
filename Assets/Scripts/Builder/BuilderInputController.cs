@@ -16,10 +16,15 @@ public class BuilderInputController : MonoBehaviour
     [SerializeField] private Color hoverColor = Color.magenta;
     [SerializeField] private Color objectiveHoverColor = Color.cyan;
     [SerializeField] private Color objectiveSelectedColor = Color.green;
+    [SerializeField] private Color patrolEndHoverColor = new Color(1f, 0.55f, 0.1f, 0.55f);
+    [SerializeField] private Color patrolStartSelectedColor = Color.green;
 
     private GridTile previousHoveredTile;
     private bool isPickingObjectiveTile;
     private GridTile selectedObjectiveTile;
+    private bool isPickingEnemyPatrolEndTile;
+    private GridTile selectedEnemyPatrolStartTile;
+    private PlacedBuilderUnit pendingEnemyPatrolUnit;
     
     [Header("References")]
     [SerializeField] private BuilderStateController builderStateController;
@@ -43,10 +48,14 @@ public class BuilderInputController : MonoBehaviour
     
     public GridTile SelectedObjectiveTile => selectedObjectiveTile;
     public bool IsPickingObjectiveTile => isPickingObjectiveTile;
+    public bool IsPickingEnemyPatrolEndTile => isPickingEnemyPatrolEndTile;
 
     public void SetObjectiveTilePickMode(bool isEnabled)
     {
         isPickingObjectiveTile = isEnabled;
+
+        if (isPickingObjectiveTile)
+            CancelEnemyPatrolEndSelection();
 
         if (!isPickingObjectiveTile)
         {
@@ -121,6 +130,10 @@ public class BuilderInputController : MonoBehaviour
         {
             RefreshObjectiveTileSelectionVisuals();
         }
+        else if (isPickingEnemyPatrolEndTile)
+        {
+            RefreshEnemyPatrolSelectionVisuals();
+        }
 
         UpdatePlacementKeyboardRotation();
     }
@@ -152,6 +165,25 @@ public class BuilderInputController : MonoBehaviour
 
             if (!currentBrushHoverTiles.Contains(selectedObjectiveTile))
                 currentBrushHoverTiles.Add(selectedObjectiveTile);
+        }
+    }
+
+    private void RefreshEnemyPatrolSelectionVisuals()
+    {
+        if (currentHoveredTile != null)
+        {
+            currentHoveredTile.SetHoverHighlight(patrolEndHoverColor);
+
+            if (!currentBrushHoverTiles.Contains(currentHoveredTile))
+                currentBrushHoverTiles.Add(currentHoveredTile);
+        }
+
+        if (selectedEnemyPatrolStartTile != null)
+        {
+            selectedEnemyPatrolStartTile.SetHoverHighlight(patrolStartSelectedColor);
+
+            if (!currentBrushHoverTiles.Contains(selectedEnemyPatrolStartTile))
+                currentBrushHoverTiles.Add(selectedEnemyPatrolStartTile);
         }
     }
 
@@ -322,7 +354,7 @@ public class BuilderInputController : MonoBehaviour
     }
     private void OnEraseClick(InputAction.CallbackContext context)
     {
-        if (isPickingObjectiveTile)
+        if (isPickingObjectiveTile || isPickingEnemyPatrolEndTile)
             return;
 
         if (currentHoveredTile == null)
@@ -346,6 +378,9 @@ public class BuilderInputController : MonoBehaviour
                 return;
             }
         }
+
+        if (TryRemovePatrolEndMarkerAtTile(tile))
+            return;
         
         if (interactablePlacementService != null)
         {
@@ -401,7 +436,8 @@ public class BuilderInputController : MonoBehaviour
             tile,
             builderStateController.SelectedUnitRotationY,
             builderStateController.SelectedUnitPaintTeam,
-            builderStateController.SelectedUnitUsesCardinalFacing
+            builderStateController.SelectedUnitUsesCardinalFacing,
+            out PlacedBuilderUnit placedUnit
         );
 
         if (!placed)
@@ -410,7 +446,85 @@ public class BuilderInputController : MonoBehaviour
             return;
         }
 
+        ConfigurePlacedUnitAI(placedUnit, tile);
+
         Debug.Log($"Placed unit {selectedUnitData.unitName} at {tile.GridPosition}");
+    }
+
+    private void ConfigurePlacedUnitAI(PlacedBuilderUnit placedUnit, GridTile startTile)
+    {
+        if (placedUnit == null || builderStateController == null || startTile == null)
+            return;
+
+        if (builderStateController.SelectedUnitPaintTeam != BuilderUnitPaintTeam.Enemy)
+        {
+            placedUnit.EnemyBehavior = EnemyAIBehavior.Static;
+            placedUnit.HasPatrolRoute = false;
+            return;
+        }
+
+        placedUnit.EnemyBehavior = builderStateController.SelectedEnemyBehavior;
+        placedUnit.PatrolStart = startTile.GridPosition;
+
+        if (placedUnit.EnemyBehavior == EnemyAIBehavior.Patrol)
+            BeginEnemyPatrolEndSelection(placedUnit, startTile);
+    }
+
+    private void BeginEnemyPatrolEndSelection(PlacedBuilderUnit placedUnit, GridTile startTile)
+    {
+        pendingEnemyPatrolUnit = placedUnit;
+        selectedEnemyPatrolStartTile = startTile;
+        isPickingEnemyPatrolEndTile = true;
+
+        ClearBrushHoverHighlight();
+        RefreshEnemyPatrolSelectionVisuals();
+
+        Debug.Log($"Patrol start selected: {startTile.GridPosition}. Select the patrol end tile.");
+    }
+
+    private void CompleteEnemyPatrolEndSelection(GridTile endTile)
+    {
+        if (pendingEnemyPatrolUnit == null || selectedEnemyPatrolStartTile == null || endTile == null)
+            return;
+
+        if (!endTile.isWalkable)
+        {
+            Debug.Log("Patrol end tile must be walkable.");
+            return;
+        }
+
+        if (endTile == selectedEnemyPatrolStartTile)
+        {
+            Debug.Log("Patrol end tile must be different from the patrol start tile.");
+            return;
+        }
+
+        if (endTile.isOccupied && endTile.OccupyingUnit != null)
+        {
+            Debug.Log("Patrol end tile cannot be occupied.");
+            return;
+        }
+
+        pendingEnemyPatrolUnit.EnemyBehavior = EnemyAIBehavior.Patrol;
+        pendingEnemyPatrolUnit.HasPatrolRoute = true;
+        pendingEnemyPatrolUnit.PatrolStart = selectedEnemyPatrolStartTile.GridPosition;
+        pendingEnemyPatrolUnit.PatrolEnd = endTile.GridPosition;
+
+        if (unitPlacementService != null)
+            unitPlacementService.CreatePatrolEndMarker(pendingEnemyPatrolUnit, endTile);
+
+        Debug.Log($"Patrol route set: {pendingEnemyPatrolUnit.PatrolStart} -> {pendingEnemyPatrolUnit.PatrolEnd}");
+
+        isPickingEnemyPatrolEndTile = false;
+        pendingEnemyPatrolUnit = null;
+        selectedEnemyPatrolStartTile = null;
+
+        ClearBrushHoverHighlight();
+        if (endTile.OccupyingUnit == null)
+        {
+            endTile.SetHoverHighlight(patrolStartSelectedColor);
+            currentBrushHoverTiles.Add(endTile);
+        }
     }
     
     private GridUnit GetUnitOnTile(GridTile tile)
@@ -431,6 +545,9 @@ public class BuilderInputController : MonoBehaviour
             PlacedBuilderUnit placedUnit = builderUnitRegistry.GetPlacedUnitAtTile(tile);
             if (placedUnit != null)
             {
+                if (unitPlacementService != null)
+                    unitPlacementService.DestroyPatrolEndMarker(placedUnit);
+
                 foreach (GridTile occupiedTile in placedUnit.OccupiedTiles)
                 {
                     if (occupiedTile == null)
@@ -452,6 +569,32 @@ public class BuilderInputController : MonoBehaviour
         Destroy(unit.gameObject);
 
         Debug.Log($"Removed unit from tile {tile?.GridPosition}");
+    }
+
+    private bool TryRemovePatrolEndMarkerAtTile(GridTile tile)
+    {
+        if (tile == null || tile.OccupyingUnit == null || builderUnitRegistry == null)
+            return false;
+
+        IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+        foreach (PlacedBuilderUnit placedUnit in placedUnits)
+        {
+            if (placedUnit == null || placedUnit.PatrolEndMarker != tile.OccupyingUnit)
+                continue;
+
+            if (unitPlacementService != null)
+                unitPlacementService.DestroyPatrolEndMarker(placedUnit);
+            else
+                tile.SetOccupant(null);
+
+            placedUnit.HasPatrolRoute = false;
+            placedUnit.EnemyBehavior = EnemyAIBehavior.Static;
+
+            Debug.Log($"Removed patrol end marker at {tile.GridPosition}.");
+            return true;
+        }
+
+        return false;
     }
     
     private void PaintElevation(GridTile centerTile)
@@ -638,6 +781,14 @@ public class BuilderInputController : MonoBehaviour
         if (IsUIBlockingSceneInteraction())
             return;
 
+        if (isPickingEnemyPatrolEndTile)
+        {
+            if (currentHoveredTile != null)
+                CompleteEnemyPatrolEndSelection(currentHoveredTile);
+
+            return;
+        }
+
         if (isPickingObjectiveTile)
         {
             if (currentHoveredTile != null)
@@ -709,6 +860,26 @@ public class BuilderInputController : MonoBehaviour
         currentHoveredTile = null;
 
         UpdateHoveredTile();
+    }
+
+    private void CancelEnemyPatrolEndSelection()
+    {
+        if (!isPickingEnemyPatrolEndTile)
+            return;
+
+        if (pendingEnemyPatrolUnit != null)
+        {
+            if (unitPlacementService != null)
+                unitPlacementService.DestroyPatrolEndMarker(pendingEnemyPatrolUnit);
+
+            pendingEnemyPatrolUnit.EnemyBehavior = EnemyAIBehavior.Static;
+            pendingEnemyPatrolUnit.HasPatrolRoute = false;
+        }
+
+        isPickingEnemyPatrolEndTile = false;
+        pendingEnemyPatrolUnit = null;
+        selectedEnemyPatrolStartTile = null;
+        ClearBrushHoverHighlight();
     }
     
     private Vector3 GetTileTopCenter(GridTile tile)

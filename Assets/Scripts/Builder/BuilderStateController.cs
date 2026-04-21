@@ -13,6 +13,7 @@ public class BuilderStateController : MonoBehaviour
 
     [Header("Unit Paint Team")]
     [SerializeField] private BuilderUnitPaintTeam selectedUnitPaintTeam = BuilderUnitPaintTeam.Player;
+    [SerializeField] private EnemyAIBehavior selectedEnemyBehavior = EnemyAIBehavior.Static;
 
     [Header("Loaded Assets Debug")]
     [SerializeField] private TerrainTypeData[] loadedTerrainTypes;
@@ -39,6 +40,7 @@ public class BuilderStateController : MonoBehaviour
     public int BrushSize => brushSize;
     public int SelectedElevationValue => selectedElevationValue;
     public BuilderUnitPaintTeam SelectedUnitPaintTeam => selectedUnitPaintTeam;
+    public EnemyAIBehavior SelectedEnemyBehavior => selectedEnemyBehavior;
 
     public TerrainType SelectedTerrainType
     {
@@ -154,6 +156,23 @@ public class BuilderStateController : MonoBehaviour
 
         Debug.Log($"Selected Unit Paint Team set to: {selectedUnitPaintTeam}");
         Debug.Log($"Loaded {GetUnitsForSelectedTeam().Length} unit types for team {selectedUnitPaintTeam}.");
+    }
+
+    public void SetSelectedEnemyBehavior(int behaviorIndex)
+    {
+        selectedEnemyBehavior = (EnemyAIBehavior)Mathf.Clamp(
+            behaviorIndex,
+            0,
+            System.Enum.GetValues(typeof(EnemyAIBehavior)).Length - 1
+        );
+
+        Debug.Log($"Selected Enemy Behavior set to: {selectedEnemyBehavior}");
+    }
+
+    public void SetSelectedEnemyBehavior(EnemyAIBehavior behavior)
+    {
+        selectedEnemyBehavior = behavior;
+        Debug.Log($"Selected Enemy Behavior set to: {selectedEnemyBehavior}");
     }
 
     public void CycleUnitPaintTeam()

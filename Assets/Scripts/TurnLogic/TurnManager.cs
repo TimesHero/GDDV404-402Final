@@ -495,26 +495,10 @@ public class TurnManager : MonoBehaviour
             }
 
             GridUnit playerTarget = GetBestTargetForEnemy(enemy);
-            BarrelInteractable barrelTarget = controller.GetPriorityVisibleBarrelTarget();
+            bool acted = controller.TryTakeTurn(playerTarget);
+            Debug.Log($"{enemy.name} state {controller.CurrentState} TryTakeTurn result: {acted}");
 
-            bool acted;
-
-            if (playerTarget != null)
-            {
-                acted = controller.TryAct(playerTarget);
-                Debug.Log($"{enemy.name} TryAct result: {acted}");
-            }
-            else if (barrelTarget != null)
-            {
-                acted = controller.TrySearchVisibleBarrels(barrelTarget);
-                Debug.Log($"{enemy.name} TrySearchVisibleBarrels result: {acted}");
-            }
-            else if (controller.HasInvestigationTarget())
-            {
-                acted = controller.TryInvestigate();
-                Debug.Log($"{enemy.name} TryInvestigate result: {acted}");
-            }
-            else
+            if (!acted && !controller.HasActiveTargetKnowledge())
             {
                 Debug.Log($"{enemy.name} has no visible or remembered target. Skipping.");
                 yield return new WaitForSeconds(GetEnemyDelay(0.2f));
