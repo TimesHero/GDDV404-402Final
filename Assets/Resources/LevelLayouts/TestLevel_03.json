@@ -397,6 +397,27 @@
             "team": "Player"
         },
         {
+            "unitId": "Player_sus",
+            "x": 4,
+            "y": 1,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
+            "unitId": "Player_sus",
+            "x": 0,
+            "y": 6,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
+            "unitId": "test_sus",
+            "x": 6,
+            "y": 0,
+            "rotationY": 0,
+            "team": "Player"
+        },
+        {
             "unitId": "Enemy_test2",
             "x": 5,
             "y": 5,
@@ -407,11 +428,12 @@
     "interactables": [],
     "objectives": [
         {
-            "winConditionType": 2,
-            "surviveTurnCount": 4,
+            "winConditionType": 1,
+            "surviveTurnCount": 0,
             "targetX": 0,
             "targetY": 0,
-            "targetInteractableId": ""
+            "targetInteractableId": "",
+            "targetTiles": []
         }
     ]
 }

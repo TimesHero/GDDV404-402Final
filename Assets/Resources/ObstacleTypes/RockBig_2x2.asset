@@ -40,6 +40,8 @@ MonoBehaviour:
   obstacleId: RockBig_2x2
   obstaclePrefab: {fileID: 1839618126132640118, guid: 93f71de161245fb4abe5a3a2d5139404, type: 3}
   blocksMovement: 1
+  visionOcclusion: 2
+  partialVisionVisibilityChance: 0.63
   footprintSize: {x: 2, y: 2}
   paintTerrainUnderObstacle: 1
   terrainTypeUnderObstacle: 4

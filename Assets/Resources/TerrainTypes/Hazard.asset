@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainTypeData
   terrainType: 3
   movementCost: 1
-  damageOnEnter: 0
+  damageOnEnter: 2
   movementPenaltyOnStop: 4
-  damageOnStop: 0
+  damageOnStop: 2
   movementPenaltyOnEntry: 4
   isWalkable: 1
   tileColor: {r: 1, g: 0.8934644, b: 0, a: 1}

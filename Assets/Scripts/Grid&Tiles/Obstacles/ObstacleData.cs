@@ -10,6 +10,14 @@ public class ObstacleRotationTransformPreset
     public Vector3 VisualScale = Vector3.one;
 }
 
+public enum VisionOcclusionType
+{
+    Auto,
+    None,
+    Partial,
+    Full
+}
+
 [CreateAssetMenu(fileName = "Obstacle_", menuName = "Grid/Obstacle Data")]
 public class ObstacleData : ScriptableObject
 {
@@ -39,6 +47,10 @@ public class ObstacleData : ScriptableObject
     [Header("Gameplay")]
     [SerializeField] private bool blocksMovement = true;
 
+    [Header("Vision")]
+    [SerializeField] private VisionOcclusionType visionOcclusion = VisionOcclusionType.Auto;
+    [SerializeField, Range(0f, 1f)] private float partialVisionVisibilityChance = 0.5f;
+
     [Header("Footprint")]
     [SerializeField] private Vector2Int footprintSize = Vector2Int.one;
     
@@ -52,7 +64,9 @@ public class ObstacleData : ScriptableObject
     public GameObject ObstaclePrefab => obstaclePrefab;
     public Vector3 VisualOffset => visualOffset;
     public bool BlocksMovement => blocksMovement;
+    public VisionOcclusionType VisionOcclusion => visionOcclusion;
     public Vector2Int FootprintSize => footprintSize;
+    public float PartialVisionVisibilityChance => partialVisionVisibilityChance;
     
     public Vector3 VisualRotationEuler => visualRotationEuler;
     public Vector3 VisualScale => visualScale;
@@ -132,5 +146,32 @@ public class ObstacleData : ScriptableObject
         if (rotationY >= 45 && rotationY < 135) return 90;
         if (rotationY >= 135 && rotationY < 225) return 180;
         return 270;
+    }
+
+    public VisionOcclusionType GetResolvedVisionOcclusion()
+    {
+        if (visionOcclusion != VisionOcclusionType.Auto)
+            return visionOcclusion;
+
+        string searchableName =
+            $"{name} {obstacleId} {(obstaclePrefab != null ? obstaclePrefab.name : string.Empty)}".ToLowerInvariant();
+
+        if (searchableName.Contains("wall") ||
+            searchableName.Contains("pared"))
+        {
+            return VisionOcclusionType.Full;
+        }
+
+        if (searchableName.Contains("rock") ||
+            searchableName.Contains("roca") ||
+            searchableName.Contains("stone") ||
+            searchableName.Contains("crate") ||
+            searchableName.Contains("box") ||
+            searchableName.Contains("pillar"))
+        {
+            return VisionOcclusionType.Partial;
+        }
+
+        return blocksMovement ? VisionOcclusionType.Full : VisionOcclusionType.None;
     }
 }

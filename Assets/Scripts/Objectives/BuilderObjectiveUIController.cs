@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class BuilderObjectiveUIController : MonoBehaviour
 {
@@ -14,12 +15,21 @@ public class BuilderObjectiveUIController : MonoBehaviour
     [SerializeField] private TMP_InputField surviveTurnsInputField;
     [SerializeField] private TMP_Text currentObjectiveText;
     [SerializeField] private TMP_Text reachTilePreviewText;
+    [SerializeField] private Toggle loseWhenSeenToggle;
     [SerializeField] private UnityEngine.UI.Image selectionModeButtonImage;
     [SerializeField] private Color selectionModeNormalColor = Color.white;
     [SerializeField] private Color selectionModeSelectedColor = Color.green;
 
+    [Header("Objective List UI")]
+    [SerializeField] private Transform objectiveListContainer;
+    [SerializeField] private GameObject objectiveListButtonPrefab;
+    [SerializeField] private Button removeSelectedObjectiveButton;
+    [SerializeField] private Color selectedObjectiveButtonTextColor = Color.yellow;
+    [SerializeField] private Color normalObjectiveButtonTextColor = Color.white;
+
     private readonly List<Vector2Int> stagedReachTiles = new List<Vector2Int>();
     private bool reachTileSelectionModeEnabled;
+    private int selectedObjectiveIndex = -1;
 
     private void Start()
     {
@@ -29,7 +39,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
     }
     private void Update()
     {
-        if (GetSelectedWinConditionType() == WinConditionType.ReachTile)
+        if (IsReachObjectiveType(GetSelectedWinConditionType()))
             RefreshReachTilePreview();
     }
 
@@ -44,7 +54,8 @@ public class BuilderObjectiveUIController : MonoBehaviour
         {
             WinConditionType.KillAllEnemies.ToString(),
             WinConditionType.SurviveTurns.ToString(),
-            WinConditionType.ReachTile.ToString()
+            WinConditionType.ReachTile.ToString(),
+            WinConditionType.ReachWithoutBeingSeen.ToString()
         };
 
         objectiveTypeDropdown.AddOptions(options);
@@ -52,7 +63,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
 
     public void AddSelectedReachTile()
     {
-        if (GetSelectedWinConditionType() != WinConditionType.ReachTile)
+        if (!IsReachObjectiveType(GetSelectedWinConditionType()))
             return;
 
         if (builderInputController == null || builderInputController.SelectedObjectiveTile == null)
@@ -95,37 +106,46 @@ public class BuilderObjectiveUIController : MonoBehaviour
             return;
         }
 
-        List<LevelObjectiveData> objectives = new List<LevelObjectiveData>();
+        if (!TryBuildObjectiveFromCurrentUI(out LevelObjectiveData objective))
+            return;
 
-        WinConditionType selectedType = GetSelectedWinConditionType();
-
-        LevelObjectiveData objective = new LevelObjectiveData
-        {
-            winConditionType = selectedType
-        };
-
-        if (selectedType == WinConditionType.SurviveTurns)
-        {
-            int surviveTurns = 1;
-
-            if (surviveTurnsInputField != null && !string.IsNullOrWhiteSpace(surviveTurnsInputField.text))
-                int.TryParse(surviveTurnsInputField.text, out surviveTurns);
-
-            objective.surviveTurnCount = Mathf.Max(1, surviveTurns);
-        }
-        else if (selectedType == WinConditionType.ReachTile)
-        {
-            if (stagedReachTiles.Count == 0)
-            {
-                Debug.LogWarning("BuilderObjectiveUIController: Add at least one reach tile before applying.");
-                return;
-            }
-
-            objective.targetGridPositions = new List<Vector2Int>(stagedReachTiles);
-        }
+        List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
+        objectives = objectives != null
+            ? new List<LevelObjectiveData>(objectives)
+            : new List<LevelObjectiveData>();
 
         objectives.Add(objective);
         objectiveRegistry.SetObjectives(objectives);
+        selectedObjectiveIndex = objectives.Count - 1;
+
+        RefreshAllUI();
+    }
+
+    public void RemoveSelectedObjective()
+    {
+        if (objectiveRegistry == null)
+            return;
+
+        List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
+        if (objectives == null || selectedObjectiveIndex < 0 || selectedObjectiveIndex >= objectives.Count)
+        {
+            Debug.LogWarning("BuilderObjectiveUIController: Select a win condition from the list before removing.");
+            return;
+        }
+
+        objectives = new List<LevelObjectiveData>(objectives);
+        objectives.RemoveAt(selectedObjectiveIndex);
+        objectiveRegistry.SetObjectives(objectives);
+
+        if (objectives.Count == 0)
+        {
+            selectedObjectiveIndex = -1;
+        }
+        else
+        {
+            selectedObjectiveIndex = Mathf.Clamp(selectedObjectiveIndex, 0, objectives.Count - 1);
+            LoadObjectiveIntoEditorFields(objectives[selectedObjectiveIndex]);
+        }
 
         RefreshAllUI();
     }
@@ -147,9 +167,24 @@ public class BuilderObjectiveUIController : MonoBehaviour
         RefreshAllUI();
     }
 
+    public void SetLoseWhenSeen(bool isEnabled)
+    {
+        if (objectiveRegistry == null)
+            return;
+
+        objectiveRegistry.SetLoseWhenSeen(isEnabled);
+        RefreshAllUI();
+    }
+
+    public void RefreshFromRegistry()
+    {
+        LoadFromRegistryIntoUI();
+        RefreshAllUI();
+    }
+
     public void OnObjectiveTypeChanged(int index)
     {
-        if (GetSelectedWinConditionType() != WinConditionType.ReachTile)
+        if (!IsReachObjectiveType(GetSelectedWinConditionType()))
         {
             reachTileSelectionModeEnabled = false;
 
@@ -163,7 +198,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
     
     public void ToggleReachTileSelectionMode()
     {
-        if (GetSelectedWinConditionType() != WinConditionType.ReachTile)
+        if (!IsReachObjectiveType(GetSelectedWinConditionType()))
         {
             Debug.LogWarning("BuilderObjectiveUIController: Selection Mode only works when ReachTile is selected.");
             return;
@@ -185,16 +220,31 @@ public class BuilderObjectiveUIController : MonoBehaviour
         if (objectiveRegistry == null)
             return;
 
+        if (loseWhenSeenToggle != null)
+            loseWhenSeenToggle.SetIsOnWithoutNotify(objectiveRegistry.LoseWhenSeen);
+
         List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
         if (objectives == null || objectives.Count == 0 || objectives[0] == null)
+        {
+            selectedObjectiveIndex = -1;
             return;
+        }
 
-        LevelObjectiveData objective = objectives[0];
+        selectedObjectiveIndex = Mathf.Clamp(selectedObjectiveIndex, 0, objectives.Count - 1);
+        LoadObjectiveIntoEditorFields(objectives[selectedObjectiveIndex]);
+    }
+
+    private void LoadObjectiveIntoEditorFields(LevelObjectiveData objective)
+    {
+        stagedReachTiles.Clear();
+
+        if (objective == null)
+            return;
 
         if (objective.winConditionType == WinConditionType.SurviveTurns && surviveTurnsInputField != null)
             surviveTurnsInputField.text = objective.surviveTurnCount.ToString();
 
-        if (objective.winConditionType == WinConditionType.ReachTile && objective.targetGridPositions != null)
+        if (IsReachObjectiveType(objective.winConditionType) && objective.targetGridPositions != null)
             stagedReachTiles.AddRange(objective.targetGridPositions);
 
         SetDropdownToType(objective.winConditionType);
@@ -204,8 +254,10 @@ public class BuilderObjectiveUIController : MonoBehaviour
     {
         RefreshInputVisibility();
         RefreshCurrentObjectiveText();
+        RefreshObjectiveListUI();
         RefreshReachTilePreview();
         RefreshSelectionModeButtonVisual();
+        RefreshRemoveButtonState();
     }
 
     private void RefreshCurrentObjectiveText()
@@ -215,37 +267,92 @@ public class BuilderObjectiveUIController : MonoBehaviour
 
         if (objectiveRegistry == null)
         {
-            currentObjectiveText.text = "Objective: None";
+            currentObjectiveText.text = "Objectives: None";
             return;
         }
 
         List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
-        if (objectives == null || objectives.Count == 0 || objectives[0] == null)
+        if (objectives == null || objectives.Count == 0)
         {
-            currentObjectiveText.text = "Objective: None";
+            currentObjectiveText.text = "Objectives: None";
             return;
         }
 
-        LevelObjectiveData objective = objectives[0];
+        string selectedText = selectedObjectiveIndex >= 0 && selectedObjectiveIndex < objectives.Count
+            ? GetObjectiveSummary(objectives[selectedObjectiveIndex])
+            : "None";
 
-        switch (objective.winConditionType)
+        currentObjectiveText.text = $"Objectives Assigned: {objectives.Count}\nSelected: {selectedText}";
+    }
+
+    private void RefreshObjectiveListUI()
+    {
+        if (objectiveListContainer == null || objectiveListButtonPrefab == null)
+            return;
+
+        for (int i = objectiveListContainer.childCount - 1; i >= 0; i--)
+            Destroy(objectiveListContainer.GetChild(i).gameObject);
+
+        if (objectiveRegistry == null)
+            return;
+
+        List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
+        if (objectives == null)
+            return;
+
+        if (selectedObjectiveIndex >= objectives.Count)
+            selectedObjectiveIndex = objectives.Count - 1;
+
+        for (int i = 0; i < objectives.Count; i++)
         {
-            case WinConditionType.KillAllEnemies:
-                currentObjectiveText.text = "Objective: Kill All Enemies";
-                break;
+            LevelObjectiveData objective = objectives[i];
+            GameObject buttonObject = Instantiate(objectiveListButtonPrefab, objectiveListContainer);
 
-            case WinConditionType.SurviveTurns:
-                currentObjectiveText.text = $"Objective: Survive {objective.surviveTurnCount} Turns";
-                break;
+            TMP_Text buttonText = buttonObject.GetComponentInChildren<TMP_Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = $"{i + 1}. {GetObjectiveSummary(objective)}";
+                buttonText.color = i == selectedObjectiveIndex
+                    ? selectedObjectiveButtonTextColor
+                    : normalObjectiveButtonTextColor;
+            }
 
-            case WinConditionType.ReachTile:
-                currentObjectiveText.text = $"Objective: Reach Tiles ({objective.targetGridPositions.Count})";
-                break;
-
-            default:
-                currentObjectiveText.text = "Objective: None";
-                break;
+            Button button = buttonObject.GetComponent<Button>();
+            if (button != null)
+            {
+                int capturedIndex = i;
+                button.onClick.AddListener(() => SelectObjectiveFromList(capturedIndex));
+            }
         }
+    }
+
+    private void SelectObjectiveFromList(int objectiveIndex)
+    {
+        if (objectiveRegistry == null)
+            return;
+
+        List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
+        if (objectives == null || objectiveIndex < 0 || objectiveIndex >= objectives.Count)
+            return;
+
+        selectedObjectiveIndex = objectiveIndex;
+        LoadObjectiveIntoEditorFields(objectives[selectedObjectiveIndex]);
+        RefreshAllUI();
+    }
+
+    private void RefreshRemoveButtonState()
+    {
+        if (removeSelectedObjectiveButton == null)
+            return;
+
+        List<LevelObjectiveData> objectives = objectiveRegistry != null
+            ? objectiveRegistry.GetObjectives()
+            : null;
+
+        removeSelectedObjectiveButton.interactable =
+            objectives != null &&
+            selectedObjectiveIndex >= 0 &&
+            selectedObjectiveIndex < objectives.Count;
     }
 
     private void RefreshInputVisibility()
@@ -256,7 +363,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
             surviveTurnsInputField.gameObject.SetActive(selectedType == WinConditionType.SurviveTurns);
 
         if (reachTilePreviewText != null)
-            reachTilePreviewText.gameObject.SetActive(selectedType == WinConditionType.ReachTile);
+            reachTilePreviewText.gameObject.SetActive(IsReachObjectiveType(selectedType));
     }
 
     private void RefreshReachTilePreview()
@@ -264,7 +371,7 @@ public class BuilderObjectiveUIController : MonoBehaviour
         if (reachTilePreviewText == null)
             return;
 
-        if (GetSelectedWinConditionType() != WinConditionType.ReachTile)
+        if (!IsReachObjectiveType(GetSelectedWinConditionType()))
         {
             reachTilePreviewText.text = "";
             return;
@@ -316,7 +423,73 @@ public class BuilderObjectiveUIController : MonoBehaviour
         if (selectedText == WinConditionType.ReachTile.ToString())
             return WinConditionType.ReachTile;
 
+        if (selectedText == WinConditionType.ReachWithoutBeingSeen.ToString())
+            return WinConditionType.ReachWithoutBeingSeen;
+
         return WinConditionType.KillAllEnemies;
+    }
+
+    private bool TryBuildObjectiveFromCurrentUI(out LevelObjectiveData objective)
+    {
+        WinConditionType selectedType = GetSelectedWinConditionType();
+
+        objective = new LevelObjectiveData
+        {
+            winConditionType = selectedType
+        };
+
+        if (selectedType == WinConditionType.SurviveTurns)
+        {
+            int surviveTurns = 1;
+
+            if (surviveTurnsInputField != null && !string.IsNullOrWhiteSpace(surviveTurnsInputField.text))
+                int.TryParse(surviveTurnsInputField.text, out surviveTurns);
+
+            objective.surviveTurnCount = Mathf.Max(1, surviveTurns);
+        }
+        else if (IsReachObjectiveType(selectedType))
+        {
+            if (stagedReachTiles.Count == 0)
+            {
+                Debug.LogWarning("BuilderObjectiveUIController: Add at least one reach tile before applying.");
+                return false;
+            }
+
+            objective.targetGridPositions = new List<Vector2Int>(stagedReachTiles);
+        }
+
+        return true;
+    }
+
+    private string GetObjectiveSummary(LevelObjectiveData objective)
+    {
+        if (objective == null)
+            return "None";
+
+        switch (objective.winConditionType)
+        {
+            case WinConditionType.KillAllEnemies:
+                return "Kill All Enemies";
+
+            case WinConditionType.SurviveTurns:
+                return $"Survive {Mathf.Max(1, objective.surviveTurnCount)} Turns";
+
+            case WinConditionType.ReachTile:
+                return $"Reach Tiles ({GetReachTileCount(objective)})";
+
+            case WinConditionType.ReachWithoutBeingSeen:
+                return $"Reach Without Being Seen ({GetReachTileCount(objective)})";
+
+            default:
+                return objective.winConditionType.ToString();
+        }
+    }
+
+    private int GetReachTileCount(LevelObjectiveData objective)
+    {
+        return objective != null && objective.targetGridPositions != null
+            ? objective.targetGridPositions.Count
+            : 0;
     }
 
     private void SetDropdownToType(WinConditionType type)
@@ -338,11 +511,17 @@ public class BuilderObjectiveUIController : MonoBehaviour
         if (selectionModeButtonImage == null)
             return;
 
-        bool canUseSelectionMode = GetSelectedWinConditionType() == WinConditionType.ReachTile;
+        bool canUseSelectionMode = IsReachObjectiveType(GetSelectedWinConditionType());
         bool isSelected = canUseSelectionMode && reachTileSelectionModeEnabled;
 
         selectionModeButtonImage.color = isSelected
             ? selectionModeSelectedColor
             : selectionModeNormalColor;
+    }
+
+    private bool IsReachObjectiveType(WinConditionType type)
+    {
+        return type == WinConditionType.ReachTile ||
+               type == WinConditionType.ReachWithoutBeingSeen;
     }
 }

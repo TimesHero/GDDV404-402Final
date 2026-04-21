@@ -8,7 +8,7 @@ public class UnitPlacementService : MonoBehaviour
     [SerializeField] private Transform playerUnitParent;
     [SerializeField] private Transform enemyUnitParent;
 
-    public bool TryPlaceUnit(UnitData unitData, GridTile originTile, int rotationY, BuilderUnitPaintTeam team)
+    public bool TryPlaceUnit(UnitData unitData, GridTile originTile, int rotationY, BuilderUnitPaintTeam team, bool useCardinalFacing = false)
     {
         if (unitData == null || unitData.unitPrefab == null || originTile == null || gridManager == null)
             return false;
@@ -44,8 +44,8 @@ public class UnitPlacementService : MonoBehaviour
 
         int normalizedRotation = NormalizeRotation(rotationY);
 
-        gridUnit.transform.rotation = Quaternion.Euler(unitData.GetVisualRotationEulerForRotation(normalizedRotation));
-        gridUnit.transform.position += unitData.GetVisualOffsetForRotation(normalizedRotation);
+        ApplyUnitRotation(gridUnit, unitData, normalizedRotation, useCardinalFacing);
+        gridUnit.transform.position = GetPreviewWorldPosition(unitData, originTile, normalizedRotation);
         gridUnit.transform.localScale = unitData.GetVisualScaleForRotation(normalizedRotation);
 
         foreach (GridTile tile in footprintTiles)
@@ -57,9 +57,11 @@ public class UnitPlacementService : MonoBehaviour
         {
             Unit = gridUnit,
             UnitData = unitData,
+            PaintTeam = team,
             Origin = originTile.GridPosition,
             FootprintSize = unitData.footprintSize,
-            RotationY = normalizedRotation
+            RotationY = normalizedRotation,
+            UseCardinalFacing = useCardinalFacing
         };
 
         placedBuilderUnit.OccupiedTiles.Clear();
@@ -92,9 +94,7 @@ public class UnitPlacementService : MonoBehaviour
         int rotationY = NormalizeRotation(placedUnit.RotationY);
 
         placedUnit.Unit.PlaceOnTile(originTile);
-        placedUnit.Unit.transform.rotation = Quaternion.Euler(
-            placedUnit.UnitData.GetVisualRotationEulerForRotation(rotationY)
-        );
+        ApplyUnitRotation(placedUnit.Unit, placedUnit.UnitData, rotationY, placedUnit.UseCardinalFacing);
         placedUnit.Unit.transform.position = GetPreviewWorldPosition(
             placedUnit.UnitData,
             originTile,
@@ -163,6 +163,20 @@ public class UnitPlacementService : MonoBehaviour
         if (rotationY >= 45 && rotationY < 135) return 90;
         if (rotationY >= 135 && rotationY < 225) return 180;
         return 270;
+    }
+
+    public void ApplyUnitRotation(GridUnit gridUnit, UnitData unitData, int rotationY, bool useCardinalFacing)
+    {
+        if (gridUnit == null || unitData == null)
+            return;
+
+        int normalizedRotation = NormalizeRotation(rotationY);
+        gridUnit.transform.rotation = Quaternion.Euler(
+            unitData.GetVisualRotationEulerForRotation(normalizedRotation, useCardinalFacing)
+        );
+
+        if (useCardinalFacing)
+            gridUnit.RestoreVisualRotation(Quaternion.Euler(0f, normalizedRotation, 0f));
     }
     
     private Vector3 GetTileTopCenter(GridTile tile)

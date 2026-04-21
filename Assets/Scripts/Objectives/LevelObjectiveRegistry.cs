@@ -4,6 +4,9 @@ using UnityEngine;
 public class LevelObjectiveRegistry : MonoBehaviour
 {
     [SerializeField] private List<LevelObjectiveData> objectives = new List<LevelObjectiveData>();
+    [SerializeField] private bool loseWhenSeen;
+
+    public bool LoseWhenSeen => loseWhenSeen;
 
     public List<LevelObjectiveData> GetObjectives()
     {
@@ -18,5 +21,10 @@ public class LevelObjectiveRegistry : MonoBehaviour
     public void ClearObjectives()
     {
         objectives.Clear();
+    }
+
+    public void SetLoseWhenSeen(bool isEnabled)
+    {
+        loseWhenSeen = isEnabled;
     }
 }

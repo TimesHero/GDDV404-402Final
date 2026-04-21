@@ -400,7 +400,8 @@ public class BuilderInputController : MonoBehaviour
             selectedUnitData,
             tile,
             builderStateController.SelectedUnitRotationY,
-            builderStateController.SelectedUnitPaintTeam
+            builderStateController.SelectedUnitPaintTeam,
+            builderStateController.SelectedUnitUsesCardinalFacing
         );
 
         if (!placed)

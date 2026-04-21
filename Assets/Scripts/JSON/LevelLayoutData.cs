@@ -13,6 +13,7 @@ public class LevelLayoutData
     public List<UnitLayoutData> units = new List<UnitLayoutData>();
     public List<InteractableLayoutData> interactables = new List<InteractableLayoutData>();
     public List<ObjectiveLayoutData> objectives = new List<ObjectiveLayoutData>();
+    public bool loseWhenSeen;
 }
 
 [Serializable]
@@ -40,6 +41,7 @@ public class UnitLayoutData
     public int x;
     public int y;
     public int rotationY;
+    public bool useCardinalFacing;
     public string team;
 }
 

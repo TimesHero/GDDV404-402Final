@@ -11,6 +11,8 @@ public class BuilderSaveLoadManager : MonoBehaviour
     
     [SerializeField] private InteractableRegistry interactableRegistry;
     [SerializeField] private LevelObjectiveRegistry objectiveRegistry;
+    [SerializeField] private BuilderObjectiveUIController builderObjectiveUIController;
+    [SerializeField] private BuilderUnitRegistry builderUnitRegistry;
     
     [Header("References")]
     [SerializeField] private GridManager gridManager;
@@ -147,49 +149,77 @@ public class BuilderSaveLoadManager : MonoBehaviour
             layoutData.obstacles.Add(obstacleData);
         }
 
-        GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in playerUnits)
-        {
-            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
-                continue;
-
-            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
-
-            UnitLayoutData unitData = new UnitLayoutData
-            {
-                unitId = unit.UnitData.UnitId,
-                x = unit.CurrentTile.X,
-                y = unit.CurrentTile.Y,
-                rotationY = rotationY,
-                team = "Player"
-            };
-
-            layoutData.units.Add(unitData);
-        }
-
-        GridUnit[] enemyUnits = enemyUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in enemyUnits)
-        {
-            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
-                continue;
-
-            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
-
-            UnitLayoutData unitData = new UnitLayoutData
-            {
-                unitId = unit.UnitData.UnitId,
-                x = unit.CurrentTile.X,
-                y = unit.CurrentTile.Y,
-                rotationY = rotationY,
-                team = "Enemy"
-            };
-
-            layoutData.units.Add(unitData);
-        }
+        AddPlacedUnitsToLayout(layoutData);
         layoutData.interactables = BuildInteractableLayoutData();
         layoutData.objectives = BuildObjectiveLayoutData();
+        layoutData.loseWhenSeen = objectiveRegistry != null && objectiveRegistry.LoseWhenSeen;
 
         return layoutData;
+    }
+
+    private void AddPlacedUnitsToLayout(LevelLayoutData layoutData)
+    {
+        if (layoutData == null)
+            return;
+
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        if (builderUnitRegistry != null)
+        {
+            IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+            foreach (PlacedBuilderUnit placedUnit in placedUnits)
+            {
+                if (placedUnit == null || placedUnit.Unit == null || placedUnit.UnitData == null)
+                    continue;
+
+                GridTile tile = placedUnit.Unit.CurrentTile;
+                if (tile == null)
+                    continue;
+
+                UnitLayoutData unitData = new UnitLayoutData
+                {
+                    unitId = placedUnit.UnitData.UnitId,
+                    x = tile.X,
+                    y = tile.Y,
+                    rotationY = NormalizeRotationY(placedUnit.RotationY),
+                    useCardinalFacing = placedUnit.UseCardinalFacing,
+                    team = placedUnit.PaintTeam == BuilderUnitPaintTeam.Enemy ? "Enemy" : "Player"
+                };
+
+                layoutData.units.Add(unitData);
+            }
+
+            return;
+        }
+
+        AddUnitsFromParentToLayout(layoutData, playerUnitParent, "Player");
+        AddUnitsFromParentToLayout(layoutData, enemyUnitParent, "Enemy");
+    }
+
+    private void AddUnitsFromParentToLayout(LevelLayoutData layoutData, Transform parent, string team)
+    {
+        if (layoutData == null || parent == null)
+            return;
+
+        GridUnit[] units = parent.GetComponentsInChildren<GridUnit>();
+        foreach (GridUnit unit in units)
+        {
+            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
+                continue;
+
+            UnitLayoutData unitData = new UnitLayoutData
+            {
+                unitId = unit.UnitData.UnitId,
+                x = unit.CurrentTile.X,
+                y = unit.CurrentTile.Y,
+                rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y)),
+                useCardinalFacing = false,
+                team = team
+            };
+
+            layoutData.units.Add(unitData);
+        }
     }
 
     private void RebuildLevel(LevelLayoutData layoutData)
@@ -280,6 +310,7 @@ public class BuilderSaveLoadManager : MonoBehaviour
         }
         
         LoadInteractablesFromLayout(layoutData);
+        LoadObjectivesFromLayout(layoutData);
 
         UnitData[] playerUnitAssets = Resources.LoadAll<UnitData>("UnitData/Player");
         UnitData[] enemyUnitAssets = Resources.LoadAll<UnitData>("UnitData/Enemy");
@@ -324,7 +355,8 @@ public class BuilderSaveLoadManager : MonoBehaviour
                 unitAsset,
                 tile,
                 unitData.rotationY,
-                team
+                team,
+                unitData.useCardinalFacing
             );
 
             if (!placed)
@@ -367,6 +399,10 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
         obstacleManager.ClearAllObstacles();
         interactablePlacementService?.ClearAllInteractables();
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        builderUnitRegistry?.ClearAll();
 
         GridTile[,] grid = gridManager.Grid;
         if (grid == null)
@@ -535,6 +571,57 @@ public class BuilderSaveLoadManager : MonoBehaviour
         }
 
         return result;
+    }
+
+    private void LoadObjectivesFromLayout(LevelLayoutData layoutData)
+    {
+        if (objectiveRegistry == null || layoutData == null)
+            return;
+
+        objectiveRegistry.SetLoseWhenSeen(layoutData.loseWhenSeen);
+
+        List<LevelObjectiveData> objectives = new List<LevelObjectiveData>();
+
+        if (layoutData.objectives != null)
+        {
+            foreach (ObjectiveLayoutData objectiveLayout in layoutData.objectives)
+            {
+                if (objectiveLayout == null)
+                    continue;
+
+                LevelObjectiveData objective = new LevelObjectiveData
+                {
+                    winConditionType = objectiveLayout.winConditionType,
+                    surviveTurnCount = objectiveLayout.surviveTurnCount,
+                    targetInteractableId = objectiveLayout.targetInteractableId
+                };
+
+                if (objectiveLayout.targetTiles != null && objectiveLayout.targetTiles.Count > 0)
+                {
+                    foreach (ObjectiveTargetTileData targetTile in objectiveLayout.targetTiles)
+                    {
+                        if (targetTile == null)
+                            continue;
+
+                        objective.targetGridPositions.Add(new Vector2Int(targetTile.x, targetTile.y));
+                    }
+                }
+                else
+                {
+                    objective.targetGridPositions.Add(new Vector2Int(objectiveLayout.targetX, objectiveLayout.targetY));
+                }
+
+                objectives.Add(objective);
+            }
+        }
+
+        objectiveRegistry.SetObjectives(objectives);
+
+        if (builderObjectiveUIController == null)
+            builderObjectiveUIController = FindFirstObjectByType<BuilderObjectiveUIController>();
+
+        if (builderObjectiveUIController != null)
+            builderObjectiveUIController.RefreshFromRegistry();
     }
     
     private void LoadInteractablesFromLayout(LevelLayoutData layoutData)

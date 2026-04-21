@@ -16,6 +16,7 @@ public class BuilderObstaclePreview : MonoBehaviour
     private GameObject currentPreviewInstance;
     private Object currentPreviewSource;
     private BuilderToolMode currentPreviewMode;
+    private bool currentPreviewUsesCardinalFacing;
 
     private void Update()
     {
@@ -144,20 +145,33 @@ public class BuilderObstaclePreview : MonoBehaviour
             return;
         }
 
-        if (NeedsRebuild(selectedUnit, BuilderToolMode.UnitPaint))
+        bool useCardinalFacing = builderStateController.SelectedUnitUsesCardinalFacing;
+
+        if (NeedsRebuild(selectedUnit, BuilderToolMode.UnitPaint) || currentPreviewUsesCardinalFacing != useCardinalFacing)
             RebuildPreview(selectedUnit.unitPrefab, selectedUnit, BuilderToolMode.UnitPaint);
 
         if (currentPreviewInstance == null)
             return;
+
+        currentPreviewUsesCardinalFacing = useCardinalFacing;
 
         int rotationY = builderStateController.SelectedUnitRotationY;
 
         currentPreviewInstance.transform.position =
             unitPlacementService.GetPreviewWorldPosition(selectedUnit, hoveredTile, rotationY);
 
-        currentPreviewInstance.transform.rotation = Quaternion.Euler(
-            selectedUnit.GetVisualRotationEulerForRotation(rotationY)
-        );
+        GridUnit previewUnit = currentPreviewInstance.GetComponent<GridUnit>();
+        if (previewUnit != null)
+        {
+            unitPlacementService.ApplyUnitRotation(previewUnit, selectedUnit, rotationY, useCardinalFacing);
+        }
+        else
+        {
+            currentPreviewInstance.transform.rotation = Quaternion.Euler(
+                selectedUnit.GetVisualRotationEulerForRotation(rotationY, useCardinalFacing)
+            );
+        }
+
         currentPreviewInstance.transform.localScale =
             selectedUnit.GetVisualScaleForRotation(rotationY);
 
@@ -180,6 +194,7 @@ public class BuilderObstaclePreview : MonoBehaviour
         currentPreviewInstance.name = $"{prefab.name}_Preview";
         currentPreviewSource = source;
         currentPreviewMode = mode;
+        currentPreviewUsesCardinalFacing = false;
 
         ApplyPreviewVisuals(currentPreviewInstance);
     }
@@ -225,5 +240,6 @@ public class BuilderObstaclePreview : MonoBehaviour
 
         currentPreviewInstance = null;
         currentPreviewSource = null;
+        currentPreviewUsesCardinalFacing = false;
     }
 }

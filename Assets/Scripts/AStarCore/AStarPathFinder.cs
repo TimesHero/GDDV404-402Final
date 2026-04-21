@@ -4,6 +4,13 @@ using System.Collections.Generic;
 public class AStarPathFinder : MonoBehaviour
 {
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+
+    private void Awake()
+    {
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+    }
 
     public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit)
     {
@@ -47,6 +54,9 @@ public class AStarPathFinder : MonoBehaviour
                 if (neighborTile.isOccupied && neighborTile != targetTile)
                     continue;
 
+                if (ShouldTreatTileAsBlockedByInteractable(neighborTile, targetTile, unit))
+                    continue;
+
                 if (!CanTraverseElevation(currentNode.Tile, neighborTile, unit))
                     continue;
                 
@@ -73,6 +83,27 @@ public class AStarPathFinder : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool ShouldTreatTileAsBlockedByInteractable(GridTile tile, GridTile targetTile, GridUnit unit)
+    {
+        if (tile == null || unit == null || interactablePlacementService == null)
+            return false;
+
+        PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+        if (placedInteractable == null)
+            return false;
+
+        BarrelInteractable barrel = placedInteractable.GetComponent<BarrelInteractable>();
+        if (barrel == null)
+            return false;
+
+        bool playerCanEnterThisBarrel =
+            unit.Team == UnitTeam.Player &&
+            tile == targetTile &&
+            barrel.CanUnitHideHere(unit);
+
+        return !playerCanEnterThisBarrel;
     }
 
     private int GetTileElevation(GridTile tile)

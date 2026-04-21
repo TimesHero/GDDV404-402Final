@@ -3,10 +3,15 @@ using UnityEngine;
 
 public class LevelObjectiveRuntimeManager : MonoBehaviour
 {
+    public static LevelObjectiveRuntimeManager Instance { get; private set; }
+
     [Header("Runtime State")]
     [SerializeField] private List<ObjectiveLayoutData> activeObjectives = new List<ObjectiveLayoutData>();
     [SerializeField] private int currentRoundCount = 0;
     [SerializeField] private bool objectivesInitialized = false;
+    [SerializeField] private bool playerWasSeen = false;
+    [SerializeField] private GridUnit firstSeenPlayerUnit;
+    [SerializeField] private bool loseWhenSeen = false;
 
     [Header("Reach Tile Visuals")]
     [SerializeField] private GridManager gridManager;
@@ -18,6 +23,11 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
 
     private readonly List<GameObject> spawnedReachMarkers = new List<GameObject>();
 
+    private void Awake()
+    {
+        Instance = this;
+    }
+
     public void InitializeObjectives(List<ObjectiveLayoutData> objectives)
     {
         activeObjectives = objectives != null
@@ -25,6 +35,8 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
             : new List<ObjectiveLayoutData>();
 
         currentRoundCount = 0;
+        playerWasSeen = false;
+        firstSeenPlayerUnit = null;
         objectivesInitialized = true;
 
         RebuildReachTileMarkers();
@@ -36,8 +48,116 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
     {
         activeObjectives.Clear();
         currentRoundCount = 0;
+        playerWasSeen = false;
+        firstSeenPlayerUnit = null;
         objectivesInitialized = false;
         ClearReachTileMarkers();
+    }
+
+    public static void NotifyPlayerSeen(GridUnit playerUnit)
+    {
+        if (Instance != null)
+            Instance.MarkPlayerSeen(playerUnit);
+    }
+
+    public static void NotifyPlayerSeenIfNotHidden(GridUnit playerUnit)
+    {
+        if (playerUnit == null || playerUnit.Team != UnitTeam.Player || playerUnit.IsDead)
+            return;
+
+        HiddenStateComponent hiddenState = playerUnit.GetComponent<HiddenStateComponent>();
+        if (hiddenState != null && hiddenState.IsHidden)
+            return;
+
+        NotifyPlayerSeen(playerUnit);
+    }
+
+    public static void RefreshPlayerSeenState()
+    {
+        if (Instance != null)
+            Instance.TryClearPlayerSeenState();
+    }
+
+    public void SetLoseWhenSeen(bool isEnabled)
+    {
+        loseWhenSeen = isEnabled;
+        Debug.Log($"Lose When Seen set to: {loseWhenSeen}");
+
+        if (loseWhenSeen && playerWasSeen && battleStateManager != null && !battleStateManager.BattleEnded)
+            battleStateManager.EndBattleExternally("You Lose");
+    }
+
+    private void MarkPlayerSeen(GridUnit playerUnit)
+    {
+        if (!objectivesInitialized || playerWasSeen || playerUnit == null)
+            return;
+
+        playerWasSeen = true;
+        firstSeenPlayerUnit = playerUnit;
+
+        Debug.Log($"Reach Without Being Seen failed: {playerUnit.name} was seen.");
+
+        if (loseWhenSeen && battleStateManager != null && !battleStateManager.BattleEnded)
+            battleStateManager.EndBattleExternally("You Lose");
+    }
+
+    private void TryClearPlayerSeenState()
+    {
+        if (!objectivesInitialized || loseWhenSeen || !playerWasSeen)
+            return;
+
+        if (IsAnyEnemyStillTrackingOrSeeingPlayer())
+            return;
+
+        playerWasSeen = false;
+        firstSeenPlayerUnit = null;
+        Debug.Log("Reach Without Being Seen restored: enemies lost the player.");
+    }
+
+    private bool IsAnyEnemyStillTrackingOrSeeingPlayer()
+    {
+        EnemyController[] enemies = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
+
+        foreach (EnemyController enemy in enemies)
+        {
+            if (enemy == null)
+                continue;
+
+            GridUnit enemyUnit = enemy.GetComponent<GridUnit>();
+            if (enemyUnit == null || enemyUnit.IsDead)
+                continue;
+
+            if (enemy.HasActiveTargetKnowledge())
+                return true;
+        }
+
+        EnemyVisionDetector[] detectors = FindObjectsByType<EnemyVisionDetector>(FindObjectsSortMode.None);
+        GridUnit[] units = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (EnemyVisionDetector detector in detectors)
+        {
+            if (detector == null)
+                continue;
+
+            GridUnit enemyUnit = detector.OwnerUnit;
+            if (enemyUnit == null || enemyUnit.IsDead)
+                continue;
+
+            foreach (GridUnit unit in units)
+            {
+                if (unit == null || unit.Team != UnitTeam.Player || unit.IsDead)
+                    continue;
+
+                HiddenStateComponent hiddenState = unit.GetComponent<HiddenStateComponent>();
+                if (hiddenState != null && hiddenState.IsHidden)
+                    continue;
+
+                if (detector.CanSeeUnit(unit))
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     public void OnPlayerTurnStarted()
@@ -46,7 +166,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
             return;
 
         currentRoundCount++;
-        EvaluateNonReachObjectives();
+        EvaluateBattleObjectives();
     }
 
     public void OnPlayerTurnEnded()
@@ -54,7 +174,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         if (!objectivesInitialized)
             return;
 
-        EvaluateReachObjectives();
+        EvaluateBattleObjectives();
     }
 
     public void OnUnitDied(GridUnit deadUnit)
@@ -62,7 +182,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         if (!objectivesInitialized)
             return;
 
-        EvaluateNonReachObjectives();
+        EvaluateBattleObjectives();
     }
 
     public void EvaluateObjectives()
@@ -70,23 +190,37 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         if (!objectivesInitialized || battleStateManager == null || battleStateManager.BattleEnded)
             return;
 
-        EvaluateNonReachObjectives();
+        EvaluateBattleObjectives();
+    }
 
-        if (battleStateManager.BattleEnded)
+    private void EvaluateBattleObjectives()
+    {
+        if (!objectivesInitialized || battleStateManager == null || battleStateManager.BattleEnded)
             return;
+
+        if (AreAllEnemiesDefeated())
+            ClearPlayerSeenState();
 
         if (!HasAnyPlayerUnitsAlive())
         {
             battleStateManager.EndBattleExternally("You Lose");
             return;
         }
-    }
 
-    private void EvaluateNonReachObjectives()
-    {
-        if (!objectivesInitialized || battleStateManager == null || battleStateManager.BattleEnded)
+        if (IsAnyReachObjectiveImpossibleBecausePlayersDied())
+        {
+            battleStateManager.EndBattleExternally("You Lose");
+            return;
+        }
+
+        if (!AreAllRequiredWinObjectivesComplete())
             return;
 
+        battleStateManager.EndBattleExternally("You Win");
+    }
+
+    private bool AreAllRequiredWinObjectivesComplete()
+    {
         bool hasAnyWinObjective = false;
 
         foreach (ObjectiveLayoutData objective in activeObjectives)
@@ -94,65 +228,61 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
             if (objective == null)
                 continue;
 
-            switch (objective.winConditionType)
-            {
-                case WinConditionType.KillAllEnemies:
-                    hasAnyWinObjective = true;
+            if (!IsWinObjective(objective.winConditionType))
+                continue;
 
-                    if (AreAllEnemiesDefeated())
-                    {
-                        battleStateManager.EndBattleExternally("You Win");
-                        return;
-                    }
-                    break;
+            hasAnyWinObjective = true;
 
-                case WinConditionType.SurviveTurns:
-                    hasAnyWinObjective = true;
-
-                    if (currentRoundCount >= objective.surviveTurnCount)
-                    {
-                        battleStateManager.EndBattleExternally("You Win");
-                        return;
-                    }
-                    break;
-            }
+            if (!IsObjectiveComplete(objective))
+                return false;
         }
 
-        if (!HasAnyPlayerUnitsAlive())
-        {
-            battleStateManager.EndBattleExternally("You Lose");
-            return;
-        }
+        return hasAnyWinObjective;
+    }
 
-        if (!hasAnyWinObjective)
+    private bool IsWinObjective(WinConditionType type)
+    {
+        return type == WinConditionType.KillAllEnemies ||
+               type == WinConditionType.SurviveTurns ||
+               type == WinConditionType.ReachTile ||
+               type == WinConditionType.ReachWithoutBeingSeen ||
+               type == WinConditionType.InteractWithObject;
+    }
+
+    private bool IsObjectiveComplete(ObjectiveLayoutData objective)
+    {
+        if (objective == null)
+            return false;
+
+        switch (objective.winConditionType)
         {
-            return;
+            case WinConditionType.KillAllEnemies:
+                return AreAllEnemiesDefeated();
+
+            case WinConditionType.SurviveTurns:
+                return currentRoundCount >= Mathf.Max(1, objective.surviveTurnCount);
+
+            case WinConditionType.ReachTile:
+                return IsReachObjectiveComplete(objective);
+
+            case WinConditionType.ReachWithoutBeingSeen:
+                if (playerWasSeen)
+                    return false;
+
+                return IsReachObjectiveComplete(objective);
+
+            case WinConditionType.InteractWithObject:
+                return false;
+
+            default:
+                return false;
         }
     }
 
-    private void EvaluateReachObjectives()
+    private bool IsReachObjectiveComplete(ObjectiveLayoutData objective)
     {
-        if (!objectivesInitialized || battleStateManager == null || battleStateManager.BattleEnded)
-            return;
-
-        foreach (ObjectiveLayoutData objective in activeObjectives)
-        {
-            if (objective == null)
-                continue;
-
-            if (objective.winConditionType != WinConditionType.ReachTile)
-                continue;
-
-            List<Vector2Int> targetZones = GetObjectiveTargetZones(objective);
-            if (targetZones.Count == 0)
-                continue;
-
-            if (AreAllLivingPlayersOnDistinctTargetZones(targetZones))
-            {
-                battleStateManager.EndBattleExternally("You Win");
-                return;
-            }
-        }
+        List<Vector2Int> targetZones = GetObjectiveTargetZones(objective);
+        return targetZones.Count > 0 && AreAllRequiredReachZonesOccupied(targetZones);
     }
 
     private bool AreAllEnemiesDefeated()
@@ -187,10 +317,62 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         return false;
     }
 
-    private bool AreAllLivingPlayersOnDistinctTargetZones(List<Vector2Int> targetZones)
+    private bool IsAnyReachObjectiveImpossibleBecausePlayersDied()
+    {
+        foreach (ObjectiveLayoutData objective in activeObjectives)
+        {
+            if (objective == null)
+                continue;
+
+            bool isReachObjective =
+                objective.winConditionType == WinConditionType.ReachTile ||
+                objective.winConditionType == WinConditionType.ReachWithoutBeingSeen;
+
+            if (!isReachObjective)
+                continue;
+
+            List<Vector2Int> targetZones = GetObjectiveTargetZones(objective);
+            if (targetZones.Count == 0)
+                continue;
+
+            if (GetLivingPlayerCount() < GetUniqueTargetZoneCount(targetZones))
+                return true;
+        }
+
+        return false;
+    }
+
+    private int GetLivingPlayerCount()
+    {
+        int count = 0;
+        GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+
+        foreach (GridUnit unit in allUnits)
+        {
+            if (unit == null || !unit.gameObject.activeInHierarchy)
+                continue;
+
+            if (unit.Team == UnitTeam.Player && !unit.IsDead && unit.CurrentTile != null)
+                count++;
+        }
+
+        return count;
+    }
+
+    private int GetUniqueTargetZoneCount(List<Vector2Int> targetZones)
+    {
+        if (targetZones == null)
+            return 0;
+
+        HashSet<Vector2Int> uniqueZones = new HashSet<Vector2Int>(targetZones);
+        return uniqueZones.Count;
+    }
+
+    private bool AreAllRequiredReachZonesOccupied(List<Vector2Int> targetZones)
     {
         GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
         List<GridUnit> livingPlayers = new List<GridUnit>();
+        HashSet<Vector2Int> requiredZones = new HashSet<Vector2Int>(targetZones);
 
         foreach (GridUnit unit in allUnits)
         {
@@ -209,7 +391,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         if (livingPlayers.Count == 0)
             return false;
 
-        if (targetZones.Count < livingPlayers.Count)
+        if (requiredZones.Count == 0 || livingPlayers.Count != requiredZones.Count)
             return false;
 
         HashSet<Vector2Int> occupiedTargetZones = new HashSet<Vector2Int>();
@@ -218,7 +400,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         {
             Vector2Int unitPos = new Vector2Int(unit.CurrentTile.X, unit.CurrentTile.Y);
 
-            if (!targetZones.Contains(unitPos))
+            if (!requiredZones.Contains(unitPos))
                 return false;
 
             if (occupiedTargetZones.Contains(unitPos))
@@ -227,7 +409,7 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
             occupiedTargetZones.Add(unitPos);
         }
 
-        return occupiedTargetZones.Count == livingPlayers.Count;
+        return occupiedTargetZones.Count == requiredZones.Count;
     }
 
     private List<Vector2Int> GetObjectiveTargetZones(ObjectiveLayoutData objective)
@@ -264,7 +446,9 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
 
         foreach (ObjectiveLayoutData objective in activeObjectives)
         {
-            if (objective == null || objective.winConditionType != WinConditionType.ReachTile)
+            if (objective == null ||
+                (objective.winConditionType != WinConditionType.ReachTile &&
+                 objective.winConditionType != WinConditionType.ReachWithoutBeingSeen))
                 continue;
 
             List<Vector2Int> targetZones = GetObjectiveTargetZones(objective);
@@ -300,6 +484,16 @@ public class LevelObjectiveRuntimeManager : MonoBehaviour
         }
 
         spawnedReachMarkers.Clear();
+    }
+
+    private void ClearPlayerSeenState()
+    {
+        if (!playerWasSeen)
+            return;
+
+        playerWasSeen = false;
+        firstSeenPlayerUnit = null;
+        Debug.Log("Reach Without Being Seen restored: all enemies are defeated.");
     }
 
     private Vector3 GetTileTopCenter(GridTile tile)

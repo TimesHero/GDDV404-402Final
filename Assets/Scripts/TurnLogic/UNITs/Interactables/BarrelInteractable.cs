@@ -6,15 +6,17 @@ public class BarrelInteractable : MonoBehaviour
     [SerializeField] private Transform visualRoot;
     [SerializeField] private PlacedInteractable placedInteractable;
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private InteractableRegistry interactableRegistry;
 
     [Header("Barrel Visual States")]
-    [SerializeField] private Vector3 openedLocalOffset = Vector3.zero;
-    [SerializeField] private Vector3 hiddenLocalOffset = new Vector3(0f, -0.75f, 0f);
+    [SerializeField] private Vector3 raisedLocalOffset = new Vector3(0f, 0.75f, 0f);
+    [SerializeField] private Vector3 loweredLocalOffset = Vector3.zero;
 
     [Header("Runtime")]
     [SerializeField] private GridUnit hiddenUnit;
 
     private Vector3 initialLocalPosition;
+    private Transform originalParent;
 
     public bool HasHiddenUnit => hiddenUnit != null;
     public GridUnit HiddenUnit => hiddenUnit;
@@ -27,8 +29,12 @@ public class BarrelInteractable : MonoBehaviour
         if (gridManager == null)
             gridManager = FindFirstObjectByType<GridManager>();
 
+        if (interactableRegistry == null)
+            interactableRegistry = FindFirstObjectByType<InteractableRegistry>();
+
+        originalParent = transform.parent;
         initialLocalPosition = visualRoot.localPosition;
-        SetBarrelOpenedVisual();
+        SetBarrelLoweredVisual();
         Debug.Log($"Barrel Awake -> placedInteractable: {placedInteractable != null}, gridManager: {gridManager != null}");
     }
     private void Start()
@@ -61,7 +67,64 @@ public class BarrelInteractable : MonoBehaviour
     public void ForceOpenBarrel()
     {
         hiddenUnit = null;
-        SetBarrelOpenedVisual();
+        DetachFromCarrier(GetBarrelTile());
+        SetBarrelRaisedVisual();
+    }
+
+    public bool TryAbsorbHitAndBreak(GridUnit protectedUnit)
+    {
+        if (protectedUnit == null)
+            return false;
+
+        HiddenStateComponent hiddenState = protectedUnit.GetComponent<HiddenStateComponent>();
+        if (hiddenState != null && hiddenState.CurrentBarrel == this)
+            hiddenState.ExitBarrel();
+
+        hiddenUnit = null;
+        UnregisterFromRegistry();
+
+        Destroy(gameObject);
+        Debug.Log($"{protectedUnit.name}'s barrel absorbed the hit and broke.");
+        return true;
+    }
+
+    public bool BreakOpenByEnemySearch()
+    {
+        GridUnit releasedUnit = hiddenUnit;
+
+        if (releasedUnit != null)
+        {
+            HiddenStateComponent hiddenState = releasedUnit.GetComponent<HiddenStateComponent>();
+            if (hiddenState != null && hiddenState.CurrentBarrel == this)
+                hiddenState.ExitBarrel();
+        }
+
+        hiddenUnit = null;
+        UnregisterFromRegistry();
+        Destroy(gameObject);
+
+        Debug.Log(releasedUnit != null
+            ? $"{releasedUnit.name} was forced out of a searched barrel."
+            : "Enemy broke an empty barrel while searching.");
+
+        return releasedUnit != null;
+    }
+
+    public bool RemoveByPlayer(GridUnit unit)
+    {
+        if (unit == null || hiddenUnit != unit)
+            return false;
+
+        HiddenStateComponent hiddenState = unit.GetComponent<HiddenStateComponent>();
+        if (hiddenState != null && hiddenState.CurrentBarrel == this)
+            hiddenState.ExitBarrel();
+
+        hiddenUnit = null;
+        UnregisterFromRegistry();
+        Destroy(gameObject);
+
+        Debug.Log($"{unit.name} removed and destroyed their barrel.");
+        return true;
     }
     
     public bool CanUnitHideHere(GridUnit unit)
@@ -90,10 +153,11 @@ public class BarrelInteractable : MonoBehaviour
 
     public void PrepareForUnitEntering()
     {
-        SetBarrelOpenedVisual();
+        DetachFromCarrier(GetBarrelTile());
+        SetBarrelRaisedVisual();
     }
 
-    public bool CompleteHideAfterMove(GridUnit unit)
+    public bool CompleteHideAfterMove(GridUnit unit, bool wasSeenEntering)
     {
         if (unit == null || unit.Team != UnitTeam.Player)
             return false;
@@ -107,12 +171,25 @@ public class BarrelInteractable : MonoBehaviour
             return false;
 
         hiddenUnit = unit;
-        hiddenState.EnterBarrel(this);
+        hiddenState.EnterBarrel(this, !wasSeenEntering, wasSeenEntering);
+        unit.ApplyHiddenMovementEntryModifier();
 
-        SetBarrelHiddenVisual();
+        AttachToCarrier(unit);
+        UpdatePlacedInteractableTile(unit.CurrentTile);
+
+        SetBarrelLoweredVisual();
+        EnemyVisionDetector.RefreshHiddenState(hiddenState);
 
         Debug.Log($"{unit.name} entered barrel.");
         return true;
+    }
+
+    public void OnCarrierTileChanged(GridTile tile)
+    {
+        if (hiddenUnit == null || tile == null)
+            return;
+
+        UpdatePlacedInteractableTile(tile);
     }
 
     private bool TryHideUnit(GridUnit unit, HiddenStateComponent hiddenState)
@@ -127,10 +204,19 @@ public class BarrelInteractable : MonoBehaviour
         if (unit.CurrentTile != barrelTile)
             return false;
 
-        hiddenUnit = unit;
-        hiddenState.EnterBarrel(this);
+        bool wasSeenEntering =
+            EnemyVisionDetector.CanAnyEnemySeeUnit(unit) ||
+            EnemyVisionDetector.CanAnyEnemySeeBarrel(this);
 
-        SetBarrelHiddenVisual();
+        hiddenUnit = unit;
+        hiddenState.EnterBarrel(this, !wasSeenEntering, wasSeenEntering);
+        unit.ApplyHiddenMovementEntryModifier();
+
+        AttachToCarrier(unit);
+        UpdatePlacedInteractableTile(unit.CurrentTile);
+
+        SetBarrelLoweredVisual();
+        EnemyVisionDetector.RefreshHiddenState(hiddenState);
 
         Debug.Log($"{unit.name} entered barrel.");
         return true;
@@ -146,10 +232,30 @@ public class BarrelInteractable : MonoBehaviour
         if (hiddenState != null)
             hiddenState.ExitBarrel();
 
-        SetBarrelOpenedVisual();
+        DetachFromCarrier(unit.CurrentTile);
+        UpdatePlacedInteractableTile(unit.CurrentTile);
+        SetBarrelRaisedVisual();
 
         Debug.Log($"{unit.name} exited barrel.");
         return true;
+    }
+
+    private void AttachToCarrier(GridUnit unit)
+    {
+        if (unit == null)
+            return;
+
+        transform.SetParent(unit.transform, true);
+        transform.localRotation = Quaternion.identity;
+        transform.localPosition = Vector3.zero;
+    }
+
+    private void DetachFromCarrier(GridTile tile)
+    {
+        transform.SetParent(originalParent, true);
+
+        if (tile != null)
+            SnapToTile(tile);
     }
 
     private GridTile GetBarrelTile()
@@ -174,19 +280,86 @@ public class BarrelInteractable : MonoBehaviour
         return (dx + dy) <= 1;
     }
 
-    private void SetBarrelOpenedVisual()
+    private void UpdatePlacedInteractableTile(GridTile tile)
     {
-        if (visualRoot == null)
+        if (placedInteractable == null || tile == null)
             return;
 
-        visualRoot.localPosition = initialLocalPosition + openedLocalOffset;
+        placedInteractable.Origin = tile.GridPosition;
+        placedInteractable.OccupiedGridPositions.Clear();
+        placedInteractable.OccupiedGridPositions.Add(tile.GridPosition);
     }
 
-    private void SetBarrelHiddenVisual()
+    private void SnapToTile(GridTile tile)
+    {
+        if (tile == null)
+            return;
+
+        if (placedInteractable != null)
+            UpdatePlacedInteractableTile(tile);
+
+        Vector3 worldPosition = GetTileTopCenter(tile);
+
+        if (placedInteractable != null && placedInteractable.Data != null)
+        {
+            worldPosition += placedInteractable.Data.GetVisualOffsetForRotation(placedInteractable.RotationY);
+            transform.rotation = Quaternion.Euler(
+                placedInteractable.Data.GetVisualRotationEulerForRotation(placedInteractable.RotationY)
+            );
+            transform.localScale = placedInteractable.Data.GetVisualScaleForRotation(placedInteractable.RotationY);
+        }
+
+        transform.position = worldPosition;
+    }
+
+    private Vector3 GetTileTopCenter(GridTile tile)
+    {
+        if (tile == null)
+            return Vector3.zero;
+
+        Renderer topRenderer = tile.GetTopRenderer();
+        if (topRenderer != null)
+        {
+            return new Vector3(
+                topRenderer.bounds.center.x,
+                topRenderer.bounds.max.y,
+                topRenderer.bounds.center.z
+            );
+        }
+
+        return tile.transform.position;
+    }
+
+    private void SetBarrelRaisedVisual()
     {
         if (visualRoot == null)
             return;
 
-        visualRoot.localPosition = initialLocalPosition + hiddenLocalOffset;
+        visualRoot.localPosition = initialLocalPosition + raisedLocalOffset;
+    }
+
+    private void SetBarrelLoweredVisual()
+    {
+        if (visualRoot == null)
+            return;
+
+        visualRoot.localPosition = initialLocalPosition + loweredLocalOffset;
+    }
+
+    private void OnDestroy()
+    {
+        UnregisterFromRegistry();
+    }
+
+    private void UnregisterFromRegistry()
+    {
+        if (placedInteractable == null)
+            placedInteractable = GetComponent<PlacedInteractable>();
+
+        if (interactableRegistry == null)
+            interactableRegistry = FindFirstObjectByType<InteractableRegistry>();
+
+        if (interactableRegistry != null && placedInteractable != null)
+            interactableRegistry.Unregister(placedInteractable);
     }
 }

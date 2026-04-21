@@ -28,10 +28,12 @@ public class BuilderStateController : MonoBehaviour
     [SerializeField] private int selectedObstacleRotationY = 0;
     [SerializeField] private int selectedInteractableRotationY = 0;
     [SerializeField] private int selectedUnitRotationY = 0;
+    [SerializeField] private bool selectedUnitUsesCardinalFacing = false;
 
     public int SelectedObstacleRotationY => selectedObstacleRotationY;
     public int SelectedInteractableRotationY => selectedInteractableRotationY;
     public int SelectedUnitRotationY => selectedUnitRotationY;
+    public bool SelectedUnitUsesCardinalFacing => selectedUnitUsesCardinalFacing;
 
     public BuilderToolMode CurrentToolMode => currentToolMode;
     public int BrushSize => brushSize;
@@ -148,6 +150,7 @@ public class BuilderStateController : MonoBehaviour
     {
         selectedUnitPaintTeam = team;
         unitIndex = 0;
+        selectedUnitUsesCardinalFacing = false;
 
         Debug.Log($"Selected Unit Paint Team set to: {selectedUnitPaintTeam}");
         Debug.Log($"Loaded {GetUnitsForSelectedTeam().Length} unit types for team {selectedUnitPaintTeam}.");
@@ -160,6 +163,7 @@ public class BuilderStateController : MonoBehaviour
             : BuilderUnitPaintTeam.Player;
 
         unitIndex = 0;
+        selectedUnitUsesCardinalFacing = false;
 
         Debug.Log($"Selected Unit Paint Team set to: {selectedUnitPaintTeam}");
         Debug.Log($"Loaded {GetUnitsForSelectedTeam().Length} unit types for team {selectedUnitPaintTeam}.");
@@ -215,6 +219,7 @@ public class BuilderStateController : MonoBehaviour
             return;
 
         unitIndex = (unitIndex + 1) % teamUnits.Length;
+        selectedUnitUsesCardinalFacing = false;
         Debug.Log($"Selected Unit set to: {CurrentUnitName}");
     }
 
@@ -229,6 +234,7 @@ public class BuilderStateController : MonoBehaviour
         if (unitIndex < 0)
             unitIndex = teamUnits.Length - 1;
 
+        selectedUnitUsesCardinalFacing = false;
         Debug.Log($"Selected Unit set to: {CurrentUnitName}");
     }
 
@@ -336,6 +342,7 @@ public class BuilderStateController : MonoBehaviour
     public void SetSelectedUnitRotationY(int rotationY)
     {
         selectedUnitRotationY = NormalizeRotation(rotationY);
+        selectedUnitUsesCardinalFacing = true;
         Debug.Log($"Selected Unit Rotation set to: {selectedUnitRotationY}");
     }
 

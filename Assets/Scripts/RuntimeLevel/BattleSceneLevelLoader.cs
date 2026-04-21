@@ -69,7 +69,10 @@ public class BattleSceneLevelLoader : MonoBehaviour
             battleStateManager.ResetBattleState();
         
         if (objectiveRuntimeManager != null)
+        {
             objectiveRuntimeManager.InitializeObjectives(layoutData.objectives);
+            objectiveRuntimeManager.SetLoseWhenSeen(layoutData.loseWhenSeen);
+        }
 
         if (turnManager != null)
             turnManager.StartPlayerTurn();
@@ -364,6 +367,7 @@ public class BattleSceneLevelLoader : MonoBehaviour
                 unitAsset,
                 originTile,
                 unitData.rotationY,
+                unitData.useCardinalFacing,
                 isEnemy ? enemyUnitParent : playerUnitParent
             );
 
@@ -372,7 +376,7 @@ public class BattleSceneLevelLoader : MonoBehaviour
         }
     }
 
-    private bool TryPlaceBattleUnit(UnitData unitData, GridTile originTile, int rotationY, Transform parent)
+    private bool TryPlaceBattleUnit(UnitData unitData, GridTile originTile, int rotationY, bool useCardinalFacing, Transform parent)
     {
         if (unitData == null || unitData.unitPrefab == null || originTile == null || parent == null)
             return false;
@@ -401,7 +405,7 @@ public class BattleSceneLevelLoader : MonoBehaviour
 
         int normalizedRotation = NormalizeRotation(rotationY);
 
-        gridUnit.transform.rotation = Quaternion.Euler(unitData.GetVisualRotationEulerForRotation(normalizedRotation));
+        ApplyBattleUnitRotation(gridUnit, unitData, normalizedRotation, useCardinalFacing);
         gridUnit.transform.position = GetTileTopCenter(originTile) + unitData.GetVisualOffsetForRotation(normalizedRotation);
         gridUnit.transform.localScale = unitData.GetVisualScaleForRotation(normalizedRotation);
 
@@ -409,6 +413,20 @@ public class BattleSceneLevelLoader : MonoBehaviour
             tile.SetOccupant(gridUnit.gameObject);
 
         return true;
+    }
+
+    private void ApplyBattleUnitRotation(GridUnit gridUnit, UnitData unitData, int rotationY, bool useCardinalFacing)
+    {
+        if (gridUnit == null || unitData == null)
+            return;
+
+        int normalizedRotation = NormalizeRotation(rotationY);
+        gridUnit.transform.rotation = Quaternion.Euler(
+            unitData.GetVisualRotationEulerForRotation(normalizedRotation, useCardinalFacing)
+        );
+
+        if (useCardinalFacing)
+            gridUnit.RestoreVisualRotation(Quaternion.Euler(0f, normalizedRotation, 0f));
     }
 
     private List<GridTile> GetFootprintTiles(GridTile originTile, Vector2Int footprintSize, int rotationY)

@@ -21,7 +21,7 @@ MonoBehaviour:
   maxHP: 11
   attackPower: 2
   defense: 0
-  movementPoints: 2
+  movementPoints: 4
   attackRange: 1
   maxClimbHeight: 1
   attackType: 0

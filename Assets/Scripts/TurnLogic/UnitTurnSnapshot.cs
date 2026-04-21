@@ -9,5 +9,7 @@ public class UnitTurnSnapshot
     public bool wasDead;
     public bool hasMovedThisTurn;
     public bool hasAttackedThisTurn;
+    public int attacksUsedThisTurn;
+    public int remainingMovementPoints;
     public Quaternion visualRotation;
 }

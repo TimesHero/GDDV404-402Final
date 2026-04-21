@@ -4,5 +4,6 @@ public enum WinConditionType
     KillAllEnemies,
     SurviveTurns,
     ReachTile,
+    ReachWithoutBeingSeen,
     InteractWithObject
 }

@@ -114,18 +114,18 @@
             "x": 2,
             "y": 2,
             "terrainType": "Ground",
-            "elevation": 0
+            "elevation": 2
         },
         {
             "x": 2,
             "y": 3,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
             "x": 2,
             "y": 4,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
@@ -162,18 +162,18 @@
             "x": 3,
             "y": 2,
             "terrainType": "Ground",
-            "elevation": 0
+            "elevation": 1
         },
         {
             "x": 3,
             "y": 3,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
             "x": 3,
             "y": 4,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
@@ -215,13 +215,13 @@
         {
             "x": 4,
             "y": 3,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
             "x": 4,
             "y": 4,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
@@ -263,13 +263,13 @@
         {
             "x": 5,
             "y": 3,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
             "x": 5,
             "y": 4,
-            "terrainType": "Ground",
+            "terrainType": "Forest",
             "elevation": 0
         },
         {
@@ -387,31 +387,52 @@
             "elevation": 0
         }
     ],
-    "obstacles": [],
+    "obstacles": [
+        {
+            "obstacleName": "StoneWall_5x2",
+            "originX": 2,
+            "originY": 3,
+            "rotationY": 0
+        }
+    ],
     "units": [
         {
             "unitId": "test_sus",
-            "x": 1,
-            "y": 1,
+            "x": 4,
+            "y": 2,
             "rotationY": 0,
             "team": "Player"
         },
         {
             "unitId": "Enemy_test2",
-            "x": 5,
+            "x": 6,
             "y": 5,
-            "rotationY": 0,
+            "rotationY": 90,
             "team": "Enemy"
         }
     ],
-    "interactables": [],
+    "interactables": [
+        {
+            "interactableId": "barrel_01",
+            "x": 3,
+            "y": 1,
+            "rotationY": 0
+        }
+    ],
     "objectives": [
         {
-            "winConditionType": 1,
+            "winConditionType": 4,
             "surviveTurnCount": 0,
-            "targetX": 0,
-            "targetY": 0,
-            "targetInteractableId": ""
+            "targetX": 7,
+            "targetY": 7,
+            "targetInteractableId": "",
+            "targetTiles": [
+                {
+                    "x": 7,
+                    "y": 7
+                }
+            ]
         }
-    ]
+    ],
+    "loseWhenSeen": true
 }
