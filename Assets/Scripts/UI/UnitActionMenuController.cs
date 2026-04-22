@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -24,6 +25,9 @@ public class UnitActionMenuController : MonoBehaviour
     [Header("Sorting")]
     [SerializeField] private int sortingOrder = 30000;
 
+    [Header("Controller Selection Frame")]
+    [SerializeField] private bool autoCreateControllerSelectionFrame = true;
+
     [Header("Auto Layout")]
     [SerializeField] private bool configureCompactLayout = true;
     [SerializeField] private Vector2 buttonSize = new Vector2(120f, 26f);
@@ -39,7 +43,13 @@ public class UnitActionMenuController : MonoBehaviour
     private Action removeBarrelAction;
     private Action exitAction;
     private int lastHandledClickFrame = -1;
+    private int menuShownFrame = -1;
     private bool isShowing;
+    private bool wasControllerMode;
+    private static UnitActionMenuController activeMenu;
+
+    public static bool IsAnyActionMenuOpen => activeMenu != null && activeMenu.IsVisible;
+    public static UnitActionMenuController ActiveMenu => activeMenu;
 
     private void Awake()
     {
@@ -49,6 +59,7 @@ public class UnitActionMenuController : MonoBehaviour
         ConfigureCanvasSorting();
         ConfigureLayout();
         ConfigureRaycastTargets();
+        EnsureControllerSelectionFrame();
 
         if (!isShowing)
             Hide();
@@ -72,6 +83,8 @@ public class UnitActionMenuController : MonoBehaviour
     {
         if (menuRoot == null || !menuRoot.activeSelf)
             return;
+
+        UpdateControllerSelectionMode();
 
         if (targetCamera == null)
             targetCamera = Camera.main;
@@ -113,12 +126,95 @@ public class UnitActionMenuController : MonoBehaviour
             menuRoot.SetActive(true);
             isShowing = false;
         }
+
+        activeMenu = this;
+        menuShownFrame = Time.frameCount;
+        wasControllerMode = ControllerInputModeTracker.IsControllerMode;
+
+        if (wasControllerMode)
+            StartCoroutine(SelectFirstAvailableButtonNextFrame());
+        else
+            ClearSelectionIfMenuOwnsIt();
     }
 
     public void Hide()
     {
+        ClearSelectionIfMenuOwnsIt();
+
         if (menuRoot != null)
             menuRoot.SetActive(false);
+
+        if (activeMenu == this)
+            activeMenu = null;
+    }
+
+    private void OnDisable()
+    {
+        if (activeMenu == this)
+            activeMenu = null;
+    }
+
+    private void ClearSelectionIfMenuOwnsIt()
+    {
+        if (EventSystem.current == null)
+            return;
+
+        GameObject selectedObject = EventSystem.current.currentSelectedGameObject;
+        if (selectedObject != null && Contains(selectedObject))
+            EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    private IEnumerator SelectFirstAvailableButtonNextFrame()
+    {
+        yield return null;
+        SelectFirstAvailableButton();
+    }
+
+    public void SelectFirstAvailableButton()
+    {
+        if (!IsVisible || EventSystem.current == null)
+            return;
+
+        Button button = GetFirstAvailableButton();
+        if (button != null)
+            EventSystem.current.SetSelectedGameObject(button.gameObject);
+    }
+
+    private Button GetFirstAvailableButton()
+    {
+        if (CanClickButton(moveButton))
+            return moveButton;
+
+        if (CanClickButton(attackButton))
+            return attackButton;
+
+        if (CanClickButton(pushButton))
+            return pushButton;
+
+        if (CanClickButton(removeBarrelButton))
+            return removeBarrelButton;
+
+        if (CanClickButton(exitButton))
+            return exitButton;
+
+        return null;
+    }
+
+    private void UpdateControllerSelectionMode()
+    {
+        bool isControllerMode = ControllerInputModeTracker.IsControllerMode;
+        if (isControllerMode == wasControllerMode)
+            return;
+
+        wasControllerMode = isControllerMode;
+
+        if (!isControllerMode)
+        {
+            ClearSelectionIfMenuOwnsIt();
+            return;
+        }
+
+        SelectFirstAvailableButton();
     }
 
     public bool TryHandlePointerClick(Vector2 screenPosition, IReadOnlyList<RaycastResult> raycastResults)
@@ -227,6 +323,9 @@ public class UnitActionMenuController : MonoBehaviour
     private void ExecuteButtonAction(Button button, Action callback, string source)
     {
         if (lastHandledClickFrame == Time.frameCount)
+            return;
+
+        if (Time.frameCount <= menuShownFrame)
             return;
 
         lastHandledClickFrame = Time.frameCount;
@@ -365,5 +464,28 @@ public class UnitActionMenuController : MonoBehaviour
 
         if (button.targetGraphic != null)
             button.targetGraphic.raycastTarget = true;
+    }
+
+    private void EnsureControllerSelectionFrame()
+    {
+        if (!autoCreateControllerSelectionFrame)
+            return;
+
+        if (GetComponentInChildren<UIWorldSpaceSelectionFrame>(true) != null)
+            return;
+
+        Canvas targetCanvas = GetComponentInChildren<Canvas>(true);
+        if (targetCanvas == null)
+            return;
+
+        GameObject frameObject = new GameObject("ControllerSelectionFrame", typeof(RectTransform), typeof(UIWorldSpaceSelectionFrame));
+        frameObject.transform.SetParent(targetCanvas.transform, false);
+
+        RectTransform frameTransform = frameObject.transform as RectTransform;
+        frameTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        frameTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        frameTransform.pivot = new Vector2(0.5f, 0.5f);
+        frameTransform.sizeDelta = Vector2.zero;
+        frameObject.transform.SetAsLastSibling();
     }
 }

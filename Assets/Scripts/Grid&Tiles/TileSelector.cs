@@ -33,6 +33,16 @@ public class TileSelector : MonoBehaviour
     [Header("Hover Colors")]
     [SerializeField] public Color hoverColor = Color.darkMagenta;
 
+    [Header("Controller Grid Cursor")]
+    [SerializeField] private bool enableControllerGridCursor = true;
+    [SerializeField] private Transform controllerHoverIndicator;
+    [SerializeField] private GameObject controllerHoverIndicatorPrefab;
+    [SerializeField] private Vector3 controllerHoverIndicatorOffset = new Vector3(0f, 0.08f, 0f);
+    [SerializeField] private float controllerMoveRepeatDelay = 0.18f;
+    [SerializeField] private float controllerInitialHoldRepeatDelay = 0.42f;
+    [SerializeField] private float controllerMoveDeadzone = 0.55f;
+    [SerializeField] private bool controllerCursorStartsOnFirstPlayerUnit = true;
+
     [Header("Debug")]
     [SerializeField] private bool logActionMenuPointerDebug = true;
     [SerializeField] private int pointerDebugMaxResults = 12;
@@ -43,6 +53,11 @@ public class TileSelector : MonoBehaviour
     private Vector2 pointerPosition;
     private GridTile currentHoveredTile;
     private GridTile previousHoveredTile;
+    private GridTile controllerCursorTile;
+    private bool usingControllerCursor;
+    private float nextControllerMoveTime;
+    private Vector2Int heldControllerMoveDirection;
+    private bool rightShoulderWasPressed;
     
     private GridUnit selectedUnit;
     
@@ -69,6 +84,8 @@ public class TileSelector : MonoBehaviour
        inputActions.Enable();
        inputActions.Gameplay.PointerPosition.performed += OnPointerMove;
        inputActions.Gameplay.Click.performed += OnClick;
+       inputActions.PlayerInputActions.Jump.performed += OnControllerPrimaryClick;
+       inputActions.PlayerInputActions.Crouch.performed += OnControllerCancel;
     }
     
     private void OnDisable()
@@ -78,16 +95,193 @@ public class TileSelector : MonoBehaviour
 
        inputActions.Gameplay.PointerPosition.performed -= OnPointerMove;
        inputActions.Gameplay.Click.performed -= OnClick;
+       inputActions.PlayerInputActions.Jump.performed -= OnControllerPrimaryClick;
+       inputActions.PlayerInputActions.Crouch.performed -= OnControllerCancel;
        inputActions.Disable();
     }
     
     private void Update()
     {
+        if (BattlePauseMenuController.IsPauseMenuOpen)
+        {
+            usingControllerCursor = false;
+            SetHoveredTile(null);
+            UpdateControllerHoverIndicator();
+            return;
+        }
+
+        HandleControllerGridInput();
+        HandleControllerRightShoulderClick();
         HandleTileHover();
+        UpdateControllerHoverIndicator();
     }
     private void OnPointerMove(InputAction.CallbackContext context)
     {
+        ControllerInputModeTracker.NotifyMouseKeyboardInput();
         pointerPosition = context.ReadValue<Vector2>();
+        usingControllerCursor = false;
+    }
+
+    private void HandleControllerGridInput()
+    {
+        if (!enableControllerGridCursor || Gamepad.current == null)
+            return;
+
+        if (BattlePauseMenuController.IsPauseMenuOpen)
+            return;
+
+        if (actionMenu != null && actionMenu.IsVisible)
+            return;
+
+        if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+            return;
+
+        if (TurnManager.Instance != null && (!TurnManager.Instance.IsPlayerTurn() || TurnManager.Instance.IsBusy()))
+            return;
+
+        Vector2 moveInput = GetControllerGridMoveInput();
+        if (moveInput.sqrMagnitude < controllerMoveDeadzone * controllerMoveDeadzone)
+        {
+            heldControllerMoveDirection = Vector2Int.zero;
+            return;
+        }
+
+        ControllerInputModeTracker.NotifyControllerInput();
+
+        Vector2Int direction = GetDominantGridDirection(moveInput);
+        if (direction == Vector2Int.zero)
+            return;
+
+        bool newDirectionPress = direction != heldControllerMoveDirection;
+        if (!newDirectionPress && Time.unscaledTime < nextControllerMoveTime)
+            return;
+
+        EnsureControllerCursorInitialized();
+
+        if (!TryMoveControllerCursor(direction))
+            return;
+
+        heldControllerMoveDirection = direction;
+        nextControllerMoveTime = Time.unscaledTime + (newDirectionPress
+            ? controllerInitialHoldRepeatDelay
+            : controllerMoveRepeatDelay);
+    }
+
+    private bool TryMoveControllerCursor(Vector2Int direction)
+    {
+        if (direction == Vector2Int.zero || controllerCursorTile == null || gridManager == null)
+            return false;
+
+        GridTile nextTile = gridManager.GetTileAt(controllerCursorTile.GridPosition + direction);
+        if (nextTile == null)
+            return false;
+
+        usingControllerCursor = true;
+        SetHoveredTile(nextTile);
+        controllerCursorTile = nextTile;
+        return true;
+    }
+
+    private void HandleControllerRightShoulderClick()
+    {
+        if (Gamepad.current == null)
+        {
+            rightShoulderWasPressed = false;
+            return;
+        }
+
+        if (BattlePauseMenuController.IsPauseMenuOpen)
+            return;
+
+        bool isPressed = Gamepad.current.rightShoulder.isPressed;
+        if (isPressed && !rightShoulderWasPressed)
+        {
+            ControllerInputModeTracker.NotifyControllerInput();
+
+            if (actionMenu != null && actionMenu.IsVisible)
+                SubmitCurrentUiSelection();
+            else
+                OnControllerPrimaryClick(default);
+        }
+
+        rightShoulderWasPressed = isPressed;
+    }
+
+    private Vector2 GetControllerGridMoveInput()
+    {
+        if (Gamepad.current == null)
+            return Vector2.zero;
+
+        Vector2 input = Gamepad.current.leftStick.ReadValue();
+        Vector2 dpad = Gamepad.current.dpad.ReadValue();
+
+        if (dpad.sqrMagnitude > input.sqrMagnitude)
+            input = dpad;
+
+        return input;
+    }
+
+    private Vector2Int GetDominantGridDirection(Vector2 input)
+    {
+        if (Mathf.Abs(input.x) > Mathf.Abs(input.y))
+            return input.x > 0f ? Vector2Int.right : Vector2Int.left;
+
+        if (Mathf.Abs(input.y) > 0f)
+            return input.y > 0f ? Vector2Int.up : Vector2Int.down;
+
+        return Vector2Int.zero;
+    }
+
+    private void EnsureControllerCursorInitialized()
+    {
+        if (controllerCursorTile != null)
+        {
+            SetHoveredTile(controllerCursorTile);
+            return;
+        }
+
+        GridTile initialTile = GetInitialControllerCursorTile();
+        if (initialTile == null)
+            return;
+
+        usingControllerCursor = true;
+        controllerCursorTile = initialTile;
+        SetHoveredTile(initialTile);
+    }
+
+    private GridTile GetInitialControllerCursorTile()
+    {
+        if (selectedUnit != null && selectedUnit.CurrentTile != null)
+            return selectedUnit.CurrentTile;
+
+        if (controllerCursorStartsOnFirstPlayerUnit && unitSpawner != null)
+        {
+            IReadOnlyList<GridUnit> spawnedUnits = unitSpawner.SpawnedUnits;
+            for (int i = 0; i < spawnedUnits.Count; i++)
+            {
+                GridUnit unit = spawnedUnits[i];
+                if (unit != null && unit.Team == UnitTeam.Player && !unit.IsDead && unit.CurrentTile != null)
+                    return unit.CurrentTile;
+            }
+        }
+
+        if (gridManager != null)
+            return gridManager.GetTileAt(new Vector2Int(gridManager.Width / 2, gridManager.Height / 2));
+
+        return null;
+    }
+
+    private void SubmitCurrentUiSelection()
+    {
+        if (EventSystem.current == null)
+            return;
+
+        GameObject selectedObject = EventSystem.current.currentSelectedGameObject;
+        if (selectedObject == null)
+            return;
+
+        BaseEventData eventData = new BaseEventData(EventSystem.current);
+        ExecuteEvents.Execute(selectedObject, eventData, ExecuteEvents.submitHandler);
     }
     
     private GridUnit GetUnitOnTile(GridTile tile)
@@ -161,7 +355,42 @@ public class TileSelector : MonoBehaviour
     
     private void OnClick(InputAction.CallbackContext context)
     {
+        ControllerInputModeTracker.NotifyMouseKeyboardInput();
+        HandlePrimaryClick();
+    }
+
+    private void OnControllerPrimaryClick(InputAction.CallbackContext context)
+    {
+        ControllerInputModeTracker.NotifyControllerInput();
+
+        if (actionMenu != null && actionMenu.IsVisible)
+            return;
+
+        EnsureControllerCursorInitialized();
+        usingControllerCursor = true;
+        HandlePrimaryClick();
+    }
+
+    private void OnControllerCancel(InputAction.CallbackContext context)
+    {
+        ControllerInputModeTracker.NotifyControllerInput();
+
+        if (actionMenu != null && actionMenu.IsVisible)
+        {
+            DeselectUnit();
+            return;
+        }
+
+        if (selectedUnit != null)
+            DeselectUnit();
+    }
+
+    private void HandlePrimaryClick()
+    {
         if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+            return;
+
+        if (BattlePauseMenuController.IsPauseMenuOpen)
             return;
 
         if (actionMenu != null && actionMenu.IsVisible)
@@ -717,42 +946,87 @@ public class TileSelector : MonoBehaviour
             return;
         }
 
+        if (usingControllerCursor)
+            return;
+
         Ray ray = mainCamera.ScreenPointToRay(pointerPosition);
 
         if (Physics.Raycast(ray, out RaycastHit hit, 100f, tileLayerMask))
         {
             GridTile tile = hit.collider.GetComponent<GridTile>();
-
-            if (tile != currentHoveredTile)
-            {
-                if (currentHoveredTile != null)
-                    RestoreTileVisualState(currentHoveredTile);
-
-                previousHoveredTile = currentHoveredTile;
-                currentHoveredTile = tile;
-                
-                if (selectedUnit != null)
-                {
-                    if (IsTileReachable(currentHoveredTile))
-                        ShowPreviewPath(selectedUnit.CurrentTile, currentHoveredTile);
-                    else
-                        ClearPreviewPath();
-                }
-                
-                if (!IsTileInPersistentState(currentHoveredTile))
-                    currentHoveredTile.SetHoverHighlight(hoverColor);
-            }
+            SetHoveredTile(tile);
         }
         else
         {
-            if (currentHoveredTile != null)
-                RestoreTileVisualState(currentHoveredTile);
-            
-            currentHoveredTile = null;
-            previousHoveredTile = null;
-            
-            ClearPreviewPath();
+            SetHoveredTile(null);
         }
+    }
+
+    private void SetHoveredTile(GridTile tile)
+    {
+        if (tile == currentHoveredTile)
+            return;
+
+        if (currentHoveredTile != null)
+            RestoreTileVisualState(currentHoveredTile);
+
+        previousHoveredTile = currentHoveredTile;
+        currentHoveredTile = tile;
+
+        if (currentHoveredTile == null)
+        {
+            ClearPreviewPath();
+            return;
+        }
+
+        if (selectedUnit != null)
+        {
+            if (IsTileReachable(currentHoveredTile))
+                ShowPreviewPath(selectedUnit.CurrentTile, currentHoveredTile);
+            else
+                ClearPreviewPath();
+        }
+
+        if (!IsTileInPersistentState(currentHoveredTile))
+            currentHoveredTile.SetHoverHighlight(hoverColor);
+    }
+
+    private void UpdateControllerHoverIndicator()
+    {
+        if (!enableControllerGridCursor)
+        {
+            SetControllerHoverIndicatorVisible(false);
+            return;
+        }
+
+        if (controllerHoverIndicator == null && controllerHoverIndicatorPrefab != null)
+            controllerHoverIndicator = Instantiate(controllerHoverIndicatorPrefab).transform;
+
+        if (controllerHoverIndicator == null)
+            return;
+
+        bool shouldShow =
+            ControllerInputModeTracker.IsControllerMode &&
+            usingControllerCursor &&
+            currentHoveredTile != null &&
+            (actionMenu == null || !actionMenu.IsVisible) &&
+            (BattleStateManager.Instance == null || !BattleStateManager.Instance.BattleEnded);
+
+        SetControllerHoverIndicatorVisible(shouldShow);
+
+        if (!shouldShow)
+            return;
+
+        controllerHoverIndicator.position = GetTileMenuPosition(currentHoveredTile) + controllerHoverIndicatorOffset;
+    }
+
+    private void SetControllerHoverIndicatorVisible(bool visible)
+    {
+        if (controllerHoverIndicator == null)
+            return;
+
+        if (controllerHoverIndicator.gameObject.activeSelf != visible)
+            controllerHoverIndicator.gameObject.SetActive(visible);
     }
     private void ClearPathPreview()
     {

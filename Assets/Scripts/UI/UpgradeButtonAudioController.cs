@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class UpgradeButtonAudioController : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class UpgradeButtonAudioController : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler
 {
     [Header("Target")]
     [SerializeField] private Button targetButton;
@@ -78,6 +78,26 @@ public class UpgradeButtonAudioController : MonoBehaviour, IPointerEnterHandler,
 
     public void OnPointerEnter(PointerEventData eventData)
     {
+        BeginHover();
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        EndHover();
+    }
+
+    public void OnSelect(BaseEventData eventData)
+    {
+        BeginHover();
+    }
+
+    public void OnDeselect(BaseEventData eventData)
+    {
+        EndHover();
+    }
+
+    private void BeginHover()
+    {
         if (!CanPlayHover())
         {
             return;
@@ -87,7 +107,7 @@ public class UpgradeButtonAudioController : MonoBehaviour, IPointerEnterHandler,
         PlayHoverClip();
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    private void EndHover()
     {
         if (!CanPlayHover())
         {

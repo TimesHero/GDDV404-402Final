@@ -12,8 +12,11 @@ public class BattleStateManager : MonoBehaviour
     public static BattleStateManager Instance { get; private set; }
 
     [Header("UI")]
+    [SerializeField] private GameObject winLosePanel;
     [SerializeField] private TextMeshProUGUI resultText;
     [SerializeField] private Button restartButton;
+    [SerializeField] private UICanvasSelectionFrame selectionFrame;
+    [SerializeField] private ControllerUINavigationController navigationController;
 
     private bool battleEnded = false;
 
@@ -29,15 +32,51 @@ public class BattleStateManager : MonoBehaviour
 
         Instance = this;
 
+        AutoAssignMissingReferences();
+        SetWinLosePanelVisible(false);
+
         if (resultText != null)
             resultText.text = "";
 
         if (restartButton != null)
         {
-            restartButton.gameObject.SetActive(false);
+            restartButton.gameObject.SetActive(winLosePanel != null);
             restartButton.onClick.RemoveAllListeners();
             restartButton.onClick.AddListener(RestartScene);
         }
+    }
+
+    private void AutoAssignMissingReferences()
+    {
+        if (winLosePanel == null)
+            winLosePanel = FindChildGameObjectByName(transform.root, "WINLose Panel");
+
+        if (resultText == null && winLosePanel != null)
+            resultText = winLosePanel.GetComponentInChildren<TextMeshProUGUI>(true);
+
+        if (restartButton == null && winLosePanel != null)
+            restartButton = winLosePanel.GetComponentInChildren<Button>(true);
+
+        if (selectionFrame == null)
+            selectionFrame = FindFirstObjectByType<UICanvasSelectionFrame>(FindObjectsInactive.Include);
+
+        if (navigationController == null)
+            navigationController = FindFirstObjectByType<ControllerUINavigationController>(FindObjectsInactive.Include);
+    }
+
+    private GameObject FindChildGameObjectByName(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrWhiteSpace(childName))
+            return null;
+
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (children[i] != null && children[i].name == childName)
+                return children[i].gameObject;
+        }
+
+        return null;
     }
 
     public void NotifyUnitDied(GridUnit deadUnit)
@@ -111,6 +150,15 @@ public class BattleStateManager : MonoBehaviour
         if (restartButton != null)
             restartButton.gameObject.SetActive(true);
 
+        SetWinLosePanelVisible(true);
+
+        if (navigationController != null)
+        {
+            navigationController.enabled = true;
+            navigationController.RefreshNavigation();
+            navigationController.SelectFirstAvailable();
+        }
+
         Debug.Log(result);
     }
 
@@ -127,8 +175,19 @@ public class BattleStateManager : MonoBehaviour
             resultText.text = "";
 
         if (restartButton != null)
-            restartButton.gameObject.SetActive(false);
+            restartButton.gameObject.SetActive(winLosePanel != null);
+
+        SetWinLosePanelVisible(false);
 
         Debug.Log("Battle state reset.");
+    }
+
+    private void SetWinLosePanelVisible(bool visible)
+    {
+        if (winLosePanel != null)
+            winLosePanel.SetActive(visible);
+
+        if (selectionFrame != null)
+            selectionFrame.gameObject.SetActive(visible);
     }
 }

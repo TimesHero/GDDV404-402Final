@@ -7,9 +7,16 @@ public class BattleCameraController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Camera controlledCamera;
+    [SerializeField] private UnitActionMenuController actionMenu;
 
     [Header("WASD Pan")]
     [SerializeField] private float keyboardPanSpeed = 8f;
+    [SerializeField] private bool allowGamepadLeftStickPan = false;
+
+    [Header("Right Stick Pan")]
+    [SerializeField] private float rightStickPanSpeed = 8f;
+    [SerializeField] private float rightStickDeadzone = 0.15f;
+    [SerializeField] private bool blockRightStickPanWhenActionMenuIsOpen = true;
 
     [Header("Right Click Drag Pan")]
     [SerializeField] private float dragPanSensitivity = 1f;
@@ -25,6 +32,9 @@ public class BattleCameraController : MonoBehaviour
     {
         if (controlledCamera == null)
             controlledCamera = GetComponent<Camera>();
+
+        if (actionMenu == null)
+            actionMenu = FindFirstObjectByType<UnitActionMenuController>();
 
         inputActions = new InputSystem_Actions();
     }
@@ -53,17 +63,23 @@ public class BattleCameraController : MonoBehaviour
 
     private void Update()
     {
+        if (BattlePauseMenuController.IsPauseMenuOpen)
+            return;
+
         HandleKeyboardPan();
         HandleRightDragPan();
     }
 
     private void OnPointerPositionChanged(InputAction.CallbackContext context)
     {
+        ControllerInputModeTracker.NotifyMouseKeyboardInput();
         pointerPosition = context.ReadValue<Vector2>();
     }
 
     private void OnRightClickStarted(InputAction.CallbackContext context)
     {
+        ControllerInputModeTracker.NotifyMouseKeyboardInput();
+
         if (blockDragWhenPointerIsOverUi && IsPointerOverUi())
             return;
 
@@ -80,7 +96,15 @@ public class BattleCameraController : MonoBehaviour
 
     private void HandleKeyboardPan()
     {
-        Vector2 moveInput = inputActions.PlayerInputActions.Move.ReadValue<Vector2>();
+        Vector2 moveInput = GetKeyboardPanInput();
+
+        if (allowGamepadLeftStickPan)
+            moveInput += inputActions.PlayerInputActions.Move.ReadValue<Vector2>();
+
+        Vector2 rightStickInput = GetRightStickPanInput();
+        if (rightStickInput.sqrMagnitude >= rightStickDeadzone * rightStickDeadzone)
+            moveInput += rightStickInput * (rightStickPanSpeed / Mathf.Max(0.01f, keyboardPanSpeed));
+
         if (moveInput.sqrMagnitude < 0.001f)
             return;
 
@@ -95,6 +119,57 @@ public class BattleCameraController : MonoBehaviour
             moveDirection.Normalize();
 
         transform.position += moveDirection * (keyboardPanSpeed * Time.deltaTime);
+    }
+
+    private Vector2 GetKeyboardPanInput()
+    {
+        if (Keyboard.current == null)
+            return Vector2.zero;
+
+        Vector2 input = Vector2.zero;
+
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
+        {
+            ControllerInputModeTracker.NotifyMouseKeyboardInput();
+            input.y += 1f;
+        }
+
+        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
+        {
+            ControllerInputModeTracker.NotifyMouseKeyboardInput();
+            input.y -= 1f;
+        }
+
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+        {
+            ControllerInputModeTracker.NotifyMouseKeyboardInput();
+            input.x += 1f;
+        }
+
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+        {
+            ControllerInputModeTracker.NotifyMouseKeyboardInput();
+            input.x -= 1f;
+        }
+
+        return input.sqrMagnitude > 1f ? input.normalized : input;
+    }
+
+    private Vector2 GetRightStickPanInput()
+    {
+        if (blockRightStickPanWhenActionMenuIsOpen && actionMenu != null && actionMenu.IsVisible)
+            return Vector2.zero;
+
+        if (Gamepad.current != null)
+        {
+            Vector2 input = Gamepad.current.rightStick.ReadValue();
+            if (input.sqrMagnitude >= rightStickDeadzone * rightStickDeadzone)
+                ControllerInputModeTracker.NotifyControllerInput();
+
+            return input;
+        }
+
+        return Vector2.zero;
     }
 
     private void HandleRightDragPan()

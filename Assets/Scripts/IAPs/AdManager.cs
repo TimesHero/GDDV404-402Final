@@ -101,7 +101,7 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
         adCompleted = showCompletionState == UnityAdsShowCompletionState.COMPLETED;
         Debug.Log($"{placementId} completed. - {showCompletionState}");
         AdCompleted(placementId);
-        analyticsManager.SendAdViewedEvent(GetAdTypeFromPlacementId(placementId));
+        analyticsManager?.SendAdViewedEvent(GetAdTypeFromPlacementId(placementId));
     }
 
     public void PrepareRewardAd(int gemReward)
@@ -132,7 +132,10 @@ public class AdManager : MonoBehaviour, IUnityAdsLoadListener, IUnityAdsShowList
             if (adCompleted)
             {
                 PurchaseFufillment fufillment = FindAnyObjectByType<PurchaseFufillment>();
-                fufillment.GrantGems(currentGemReward);
+                if (fufillment != null)
+                {
+                    fufillment.GrantGems(currentGemReward);
+                }
             }
             else
             {
