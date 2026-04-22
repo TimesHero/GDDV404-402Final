@@ -47,7 +47,9 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private bool hasBarrelLayoutMemory;
     [SerializeField] private bool hasSuspiciousInvestigationPosition;
     [SerializeField] private bool investigatingMissingBarrelLayoutChange;
+    [SerializeField, Min(1)] private int maxFailedInvestigationAttempts = 2;
     private bool barrelSearchInterruptedByMovingTarget;
+    private int failedInvestigationAttempts;
     private bool patrolHeadingToEnd = true;
     private bool pendingPatrolDestinationFlip;
     private bool shouldReturnToPost;
@@ -433,6 +435,7 @@ public class EnemyController : MonoBehaviour
 
         rememberedTargetUnit = targetUnit;
         lastKnownTargetTile = targetUnit.CurrentTile;
+        failedInvestigationAttempts = 0;
         HiddenStateComponent hiddenState = targetUnit.GetComponent<HiddenStateComponent>();
         RegisterObservedBarrelPosition(hiddenState != null ? hiddenState.CurrentBarrel : null);
         if (shouldShowAlertFeedback)
@@ -472,7 +475,10 @@ public class EnemyController : MonoBehaviour
         pendingInvestigationScanAfterMove = false;
 
         if (controlledUnit == null || controlledUnit.IsDead || lastKnownTargetTile == null)
+        {
+            FailSafeEndInvestigation("missing investigation data");
             return false;
+        }
 
         if (controlledUnit.IsMoving)
             return false;
@@ -480,22 +486,31 @@ public class EnemyController : MonoBehaviour
         GridTile destinationTile = GetBestInvestigationDestination(lastKnownTargetTile);
         if (destinationTile == null)
         {
-            ClearInvestigationState();
+            FailSafeEndInvestigation("no valid investigation destination");
             return false;
         }
 
         if (controlledUnit.CurrentTile != destinationTile)
         {
             if (!controlledUnit.CanMoveThisTurn())
+            {
+                FailSafeEndInvestigation("no movement available to continue investigation");
                 return false;
+            }
 
             List<GridTile> fullPath = pathFinder.FindPath(controlledUnit.CurrentTile, destinationTile, controlledUnit);
             if (fullPath == null || fullPath.Count <= 1)
+            {
+                FailSafeEndInvestigation("no path to investigation destination");
                 return false;
+            }
 
             List<GridTile> trimmedPath = TrimPathByMovementBudget(fullPath, controlledUnit);
             if (trimmedPath == null || trimmedPath.Count <= 1)
+            {
+                FailSafeEndInvestigation("movement budget cannot advance investigation");
                 return false;
+            }
 
             controlledUnit.OnMovementFinished -= HandleMovementFinished;
             controlledUnit.OnMovementFinished += HandleMovementFinished;
@@ -505,17 +520,20 @@ public class EnemyController : MonoBehaviour
             {
                 controlledUnit.OnMovementFinished -= HandleMovementFinished;
                 pendingInvestigationScanAfterMove = false;
+                FailSafeEndInvestigation("movement failed while investigating");
                 return false;
             }
 
             LastActionWasMovement = true;
             Debug.Log($"{controlledUnit.name} is investigating last known position.");
+            failedInvestigationAttempts = 0;
             return true;
         }
 
         if (IsInvestigationScanRunning)
             return false;
 
+        failedInvestigationAttempts = 0;
         StartCoroutine(ScanAllDirectionsAndReactRoutine());
         return true;
     }
@@ -1425,6 +1443,23 @@ public class EnemyController : MonoBehaviour
         LevelObjectiveRuntimeManager.RefreshPlayerSeenState();
     }
 
+    private void FailSafeEndInvestigation(string reason)
+    {
+        failedInvestigationAttempts++;
+        string unitName = controlledUnit != null ? controlledUnit.name : name;
+        Debug.Log($"{unitName} investigation fail-safe triggered ({failedInvestigationAttempts}/{maxFailedInvestigationAttempts}): {reason}.");
+
+        if (failedInvestigationAttempts < maxFailedInvestigationAttempts)
+            return;
+
+        Debug.Log($"{unitName} has no useful investigation lead left. Returning to routine.");
+        failedInvestigationAttempts = 0;
+        ClearInvestigationState();
+        LastActionWasMovement = false;
+        IsInvestigationScanRunning = false;
+        IsActionAnimationRunning = false;
+    }
+
     private void FaceLastSeenDirection()
     {
         if (lastSeenMovementDirection.sqrMagnitude <= 0.0001f)
@@ -1476,10 +1511,14 @@ public class EnemyController : MonoBehaviour
                     hiddenState != null &&
                     (!hiddenState.IsHidden || hiddenState.BarrelKnownToEnemies);
 
-                if (barrelVisible && barrelCarrierKnown)
+                if (barrelVisible && barrelCarrierKnown && !hiddenState.IsHidden)
                 {
                     RememberTarget(unit);
-                    isVisible = !hiddenState.IsHidden;
+                    isVisible = true;
+                }
+                else if (barrelVisible && barrelCarrierKnown)
+                {
+                    RegisterObservedBarrelPosition(hiddenState.CurrentBarrel);
                 }
             }
             else
@@ -1512,18 +1551,20 @@ public class EnemyController : MonoBehaviour
         if (detector == null)
             return null;
 
-        BarrelInteractable trackedBarrel = GetTrackedVisibleTargetBarrel(detector);
-        if (trackedBarrel != null)
-            return trackedBarrel;
+        if (prioritizeLastKnownBarrelMovement)
+        {
+            BarrelInteractable trackedBarrel = GetTrackedVisibleTargetBarrel(detector);
+            if (trackedBarrel != null)
+                return trackedBarrel;
+
+            return null;
+        }
 
         BarrelInteractable suspiciousBarrel = GetPrioritySuspiciousVisibleBarrelTarget(detector);
         if (suspiciousBarrel != null)
             return suspiciousBarrel;
 
         if (!CanSearchKnownBarrels())
-            return null;
-
-        if (prioritizeLastKnownBarrelMovement)
             return null;
 
         ObserveVisibleBarrels();
@@ -1787,6 +1828,9 @@ public class EnemyController : MonoBehaviour
 
         barrelSearchInterruptedByMovingTarget = false;
         IsActionAnimationRunning = false;
+
+        if (!CanContinueBarrelSearch() && !HasInvestigationPointTarget())
+            FailSafeEndInvestigation("barrel search ended with no remaining leads");
     }
 
     private bool CanContinueBarrelSearch()
@@ -2161,6 +2205,7 @@ public class EnemyController : MonoBehaviour
         lastKnownTargetTile = suspiciousTile;
         hasSuspiciousInvestigationPosition = true;
         investigatingMissingBarrelLayoutChange = false;
+        failedInvestigationAttempts = 0;
         shouldReturnToPost = false;
 
         if (currentState == EnemyAIState.Idle || currentState == EnemyAIState.Patrol || currentState == EnemyAIState.ReturnToPost)
@@ -2180,6 +2225,7 @@ public class EnemyController : MonoBehaviour
         lastKnownTargetTile = missingBarrelTile;
         hasSuspiciousInvestigationPosition = true;
         investigatingMissingBarrelLayoutChange = true;
+        failedInvestigationAttempts = 0;
         shouldReturnToPost = false;
 
         if (currentState == EnemyAIState.Idle || currentState == EnemyAIState.Patrol || currentState == EnemyAIState.ReturnToPost)

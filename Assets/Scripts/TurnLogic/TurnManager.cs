@@ -634,7 +634,7 @@ public class TurnManager : MonoBehaviour
                         hiddenState != null &&
                         (!hiddenState.IsHidden || hiddenState.BarrelKnownToEnemies);
 
-                    if (barrelVisible && barrelCarrierKnown && controller != null)
+                    if (barrelVisible && barrelCarrierKnown && !hiddenState.IsHidden && controller != null)
                         controller.RememberTarget(unit);
 
                     isVisible = false;

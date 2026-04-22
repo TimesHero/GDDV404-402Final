@@ -15,22 +15,30 @@ MonoBehaviour:
   unitId: Enemy_test2
   unitTeam: 0
   unitName: SUS 2
-  description: 
-  role: 0
-  defaultTeam: 1
   maxHP: 11
   attackPower: 2
   defense: 0
   movementPoints: 4
   attackRange: 1
+  canAttackMultipleTimesPerTurn: 0
+  attacksPerTurn: 1
+  canBackstab: 0
+  backstabDamageMultiplier: 2
+  backstabBonusDamage: 0
   maxClimbHeight: 1
-  attackType: 0
-  elementType: 0
+  canHideInBarrel: 1
+  hiddenMovementPreset: 2
+  customHiddenMovementDivisor: 2
+  movementSpeedWhileHidden: 0
+  canPush: 1
+  pushDistance: 1
+  canBePushed: 1
+  usePushWeightSystem: 0
+  pushWeight: 1
+  pushDistancePerWeightDifference: 0
   visionRange: 5
   visionAngle: 90
-  aiType: 0
-  abilities: []
-  ultimateAbility: {fileID: 0}
+  canNoticeBarrelLayoutChanges: 1
   footprintSize: {x: 1, y: 1}
   useRotationPresets: 0
   rotation0Preset:
@@ -57,4 +65,12 @@ MonoBehaviour:
   localRotationEuler: {x: 0, y: 0, z: 0}
   localScale: {x: 1, y: 1, z: 1}
   unitPrefab: {fileID: 7081758415280801425, guid: c25a49cbeaecaeb498aceed6355fa674, type: 3}
+  description: 
+  role: 0
+  defaultTeam: 1
+  attackType: 0
+  elementType: 0
+  aiType: 0
+  abilities: []
+  ultimateAbility: {fileID: 0}
   portrait: {fileID: 21300000, guid: 722d2be1fc1b7144ca0e47ab8b47c012, type: 3}

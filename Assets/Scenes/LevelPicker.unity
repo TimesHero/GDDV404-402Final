@@ -471,6 +471,14 @@ MonoBehaviour:
   levelListButtonPrefab: {fileID: 7516385447019025087, guid: bfa9bb5bf4703b5479ce5f846ba63d5a, type: 3}
   selectedLevelText: {fileID: 1474300721}
   confirmButton: {fileID: 1221789805}
+  mainMenuButton: {fileID: 1454114748}
+  levelScrollRect: {fileID: 713618545}
+  selectConfirmAfterLevelSelection: 1
+  configureExplicitControllerNavigation: 1
+  restrictNavigationToVisibleLevelButtons: 1
+  visibleButtonPadding: 8
+  rightStickScrollSpeed: 0.8
+  rightStickDeadzone: 0.2
   selectedLevelButtonTextColor: {r: 0.638662, g: 0.015686274, b: 1, a: 1}
   normalLevelButtonTextColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &520656426
@@ -610,6 +618,110 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 520656426}
   m_CullTransparentMesh: 1
+--- !u!1 &541335583
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 541335584}
+  - component: {fileID: 541335587}
+  - component: {fileID: 541335586}
+  - component: {fileID: 541335585}
+  m_Layer: 5
+  m_Name: ControllerSelectionFrame
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &541335584
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541335583}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 591223983}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &541335585
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541335583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96c293c001baaca488581bb369af6eaf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UICanvasSelectionFrame
+  frameRoot: {fileID: 541335584}
+  targetCanvas: {fileID: 591223982}
+  navigationRoot: {fileID: 0}
+  sizeClampRoot: {fileID: 0}
+  frameColor: {r: 0.88, g: 0.62, b: 0.18, a: 1}
+  offset: {x: 0.31, y: -0.3}
+  sizeMultiplier: {x: 1, y: 1}
+  padding: {x: 9.6, y: 12.35}
+  clampSizeToRoot: 1
+  clampRootPadding: {x: 4, y: 4}
+  cornerLength: 20.9
+  cornerThickness: 7.57
+  keepOnTop: 1
+  hideWhenNoSelection: 1
+  snapInstantly: 0
+  followSpeed: 18
+--- !u!114 &541335586
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541335583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &541335587
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 541335583}
+  m_CullTransparentMesh: 1
 --- !u!1 &591223979
 GameObject:
   m_ObjectHideFlags: 0
@@ -705,6 +817,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1301327821}
+  - {fileID: 541335584}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1916,6 +2029,57 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &2107924153
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2107924155}
+  - component: {fileID: 2107924154}
+  m_Layer: 0
+  m_Name: MenuNavigation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2107924154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2107924153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c291d3c7c79a96e409ab51037a3e6574, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ControllerUINavigationController
+  initialSelection: {fileID: 1454114748}
+  navigationRoot: {fileID: 1301327821}
+  panelNavigationTargets: []
+  selectFirstOnEnable: 1
+  keepSelectionAlive: 1
+  selectionRepairDelay: 0.05
+  autoConfigureNavigation: 1
+--- !u!4 &2107924155
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2107924153}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 968.11285, y: 592.51733, z: -0.01495}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1925,3 +2089,4 @@ SceneRoots:
   - {fileID: 591223983}
   - {fileID: 1531025844}
   - {fileID: 1825840178}
+  - {fileID: 2107924155}
