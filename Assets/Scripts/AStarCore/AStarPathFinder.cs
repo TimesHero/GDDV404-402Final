@@ -51,7 +51,7 @@ public class AStarPathFinder : MonoBehaviour
                 if (!neighborTile.isWalkable)
                     continue;
 
-                if (neighborTile.isOccupied && neighborTile != targetTile)
+                if (IsTileOccupiedByOtherUnit(neighborTile, unit))
                     continue;
 
                 if (ShouldTreatTileAsBlockedByInteractable(neighborTile, targetTile, unit, allowInteractableTarget))
@@ -83,6 +83,17 @@ public class AStarPathFinder : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool IsTileOccupiedByOtherUnit(GridTile tile, GridUnit unit)
+    {
+        if (tile == null || unit == null || !tile.isOccupied)
+            return false;
+
+        if (tile.OccupyingUnit == null)
+            return true;
+
+        return tile.OccupyingUnit != unit.gameObject;
     }
 
     private bool ShouldTreatTileAsBlockedByInteractable(GridTile tile, GridTile targetTile, GridUnit unit, bool allowInteractableTarget)

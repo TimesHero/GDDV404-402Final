@@ -85,6 +85,10 @@ public class UnitData : ScriptableObject
     [Min(1)] public int visionRange = 5;
     [Range(0f, 360f)] public float visionAngle = 90f;
 
+    [Header("Enemy Barrel Awareness")]
+    [Tooltip("Enemy-only behavior. If enabled, this unit remembers visible barrel positions and investigates when a barrel appears, disappears, or moves in an area it has seen before.")]
+    public bool canNoticeBarrelLayoutChanges = false;
+
     [Header("Builder Footprint")]
     public Vector2Int footprintSize = Vector2Int.one;
 

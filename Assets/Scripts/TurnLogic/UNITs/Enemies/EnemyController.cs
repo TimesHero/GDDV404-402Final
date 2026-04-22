@@ -26,19 +26,31 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private Vector2Int patrolEndGridPosition;
     [SerializeField] private bool logStateChanges = true;
 
+    [Header("Home Post")]
+    [SerializeField] private bool hasHomePost;
+    [SerializeField] private Vector2Int homeGridPosition;
+    [SerializeField] private Quaternion homeVisualRotation = Quaternion.identity;
+
     [Header("Investigation")]
     [SerializeField] private GridUnit rememberedTargetUnit;
     [SerializeField] private GridTile lastKnownTargetTile;
     [SerializeField] private List<Vector2Int> observedBarrelPositions = new List<Vector2Int>();
+    [SerializeField] private List<Vector2Int> rememberedBarrelLayoutPositions = new List<Vector2Int>();
+    [SerializeField] private List<Vector2Int> observedBarrelLayoutTilePositions = new List<Vector2Int>();
+    [SerializeField] private List<Vector2Int> suspiciousBarrelPositions = new List<Vector2Int>();
     [SerializeField] private int lookDirectionIndex;
     [SerializeField] private float investigationLookPause = 0.45f;
     [SerializeField] private Vector3 lastSeenMovementDirection = Vector3.zero;
     [SerializeField] private bool prioritizeLastKnownBarrelMovement;
     [SerializeField, Min(1)] private int maxBarrelsToSearchInOneTurn = 8;
     [SerializeField, Min(1f)] private float barrelSearchMovementTimeout = 8f;
+    [SerializeField] private bool hasBarrelLayoutMemory;
+    [SerializeField] private bool hasSuspiciousInvestigationPosition;
+    [SerializeField] private bool investigatingMissingBarrelLayoutChange;
     private bool barrelSearchInterruptedByMovingTarget;
     private bool patrolHeadingToEnd = true;
     private bool pendingPatrolDestinationFlip;
+    private bool shouldReturnToPost;
 
     public bool LastActionWasMovement { get; private set; }
     public bool IsInvestigationScanRunning { get; private set; }
@@ -90,11 +102,17 @@ public class EnemyController : MonoBehaviour
         patrolHeadingToEnd = true;
 
         defaultState = hasPatrolRoute ? EnemyAIState.Patrol : EnemyAIState.Idle;
+        CaptureHomePost();
         SetState(GetCalmState());
     }
 
     public bool TryTakeTurn(GridUnit visibleTarget)
     {
+        if (!hasHomePost)
+            CaptureHomePost();
+
+        RefreshBarrelLayoutMemory(true);
+
         EnemyAIState nextState = ResolveTurnState(visibleTarget);
         SetState(nextState);
 
@@ -123,7 +141,7 @@ public class EnemyController : MonoBehaviour
                 return TryInvestigate();
 
             case EnemyAIState.Alert:
-                if (HasInvestigationTarget())
+                if (HasInvestigationPointTarget())
                 {
                     SetState(EnemyAIState.Investigate);
                     return TryInvestigate();
@@ -135,13 +153,15 @@ public class EnemyController : MonoBehaviour
             case EnemyAIState.Patrol:
                 return TryPatrol();
 
+            case EnemyAIState.ReturnToPost:
+                return TryReturnToPost();
+
             case EnemyAIState.Idle:
                 if (configuredBehavior == EnemyAIBehavior.RandomLook)
                     return TryRandomLook();
 
                 return false;
 
-            case EnemyAIState.ReturnToPost:
             default:
                 return false;
         }
@@ -155,8 +175,11 @@ public class EnemyController : MonoBehaviour
         if (GetPriorityVisibleBarrelTarget() != null)
             return EnemyAIState.SearchBarrels;
 
-        if (HasInvestigationTarget())
+        if (HasInvestigationPointTarget())
             return EnemyAIState.Investigate;
+
+        if (shouldReturnToPost)
+            return EnemyAIState.ReturnToPost;
 
         return GetCalmState();
     }
@@ -170,6 +193,65 @@ public class EnemyController : MonoBehaviour
             return EnemyAIState.Patrol;
 
         return EnemyAIState.Idle;
+    }
+
+    private void CaptureHomePost()
+    {
+        if (controlledUnit == null || controlledUnit.CurrentTile == null)
+            return;
+
+        homeGridPosition = controlledUnit.CurrentTile.GridPosition;
+        homeVisualRotation = controlledUnit.GetVisualRotation();
+        hasHomePost = true;
+    }
+
+    private bool ShouldUseHomePostReturn()
+    {
+        if (!hasHomePost || controlledUnit == null || controlledUnit.CurrentTile == null)
+            return false;
+
+        return configuredBehavior != EnemyAIBehavior.Patrol && !hasPatrolRoute;
+    }
+
+    private GridTile GetHomeTile()
+    {
+        if (!hasHomePost || gridManager == null)
+            return null;
+
+        return gridManager.GetTileAt(homeGridPosition);
+    }
+
+    private bool IsAtHomePost()
+    {
+        return controlledUnit != null &&
+               controlledUnit.CurrentTile != null &&
+               controlledUnit.CurrentTile.GridPosition == homeGridPosition;
+    }
+
+    private bool RequestReturnToPostIfNeeded()
+    {
+        if (!ShouldUseHomePostReturn())
+            return false;
+
+        if (IsAtHomePost())
+        {
+            controlledUnit.RestoreVisualRotation(homeVisualRotation);
+            shouldReturnToPost = false;
+            return false;
+        }
+
+        shouldReturnToPost = true;
+        return true;
+    }
+
+    private void FinishReturnToPost()
+    {
+        shouldReturnToPost = false;
+
+        if (controlledUnit != null && hasHomePost)
+            controlledUnit.RestoreVisualRotation(homeVisualRotation);
+
+        SetState(GetCalmState());
     }
 
     private void SetState(EnemyAIState nextState)
@@ -263,8 +345,12 @@ public class EnemyController : MonoBehaviour
         controlledUnit.OnMovementFinished -= HandleMovementFinished;
         controlledUnit.OnMovementFinished += HandleMovementFinished;
 
-        controlledUnit.MarkMovedThisTurn();
-        controlledUnit.MoveAlongPath(trimmedPath);
+        if (!controlledUnit.TryMove(trimmedPath))
+        {
+            controlledUnit.OnMovementFinished -= HandleMovementFinished;
+            pendingAttackTarget = null;
+            return false;
+        }
 
         LastActionWasMovement = true;
         Debug.Log("Enemy movement started.");
@@ -278,9 +364,17 @@ public class EnemyController : MonoBehaviour
                lastKnownTargetTile != null;
     }
 
-    public bool HasActiveTargetKnowledge()
+    private bool HasInvestigationPointTarget()
     {
         return HasInvestigationTarget() ||
+               (hasSuspiciousInvestigationPosition && lastKnownTargetTile != null);
+    }
+
+    public bool HasActiveTargetKnowledge()
+    {
+        return HasInvestigationPointTarget() ||
+               CanSearchSuspiciousBarrels() ||
+               shouldReturnToPost ||
                pendingAttackTarget != null ||
                pendingPushTarget != null ||
                pendingBarrelTarget != null;
@@ -300,7 +394,10 @@ public class EnemyController : MonoBehaviour
     {
         GridUnit visibleTarget = GetVisiblePlayerInCurrentFacing();
         if (visibleTarget == null)
+        {
+            RefreshBarrelLayoutMemory(true);
             return null;
+        }
 
         RememberTarget(visibleTarget);
         Debug.Log($"{controlledUnit.name} spotted {visibleTarget.name} while looking.");
@@ -311,6 +408,8 @@ public class EnemyController : MonoBehaviour
     {
         if (targetUnit == null || targetUnit.CurrentTile == null)
             return;
+
+        shouldReturnToPost = false;
 
         bool shouldShowAlertFeedback =
             rememberedTargetUnit != targetUnit ||
@@ -402,8 +501,13 @@ public class EnemyController : MonoBehaviour
             controlledUnit.OnMovementFinished += HandleMovementFinished;
 
             pendingInvestigationScanAfterMove = true;
-            controlledUnit.MarkMovedThisTurn();
-            controlledUnit.MoveAlongPath(trimmedPath);
+            if (!controlledUnit.TryMove(trimmedPath))
+            {
+                controlledUnit.OnMovementFinished -= HandleMovementFinished;
+                pendingInvestigationScanAfterMove = false;
+                return false;
+            }
+
             LastActionWasMovement = true;
             Debug.Log($"{controlledUnit.name} is investigating last known position.");
             return true;
@@ -482,7 +586,7 @@ public class EnemyController : MonoBehaviour
         if (!controlledUnit.CanAttackThisTurn())
             return false;
 
-        if (!CanSearchKnownBarrels())
+        if (!CanContinueBarrelSearch())
             return false;
 
         BarrelInteractable firstTarget = firstBarrel != null ? firstBarrel : GetPriorityVisibleBarrelTarget();
@@ -572,6 +676,67 @@ public class EnemyController : MonoBehaviour
         RefreshAwarenessFromCurrentFacing();
         LastActionWasMovement = false;
         Debug.Log($"{controlledUnit.name} looks around randomly.");
+        return true;
+    }
+
+    private bool TryReturnToPost()
+    {
+        LastActionWasMovement = false;
+        pendingAttackTarget = null;
+        pendingBarrelTarget = null;
+        pendingPushTarget = null;
+        pendingInvestigationScanAfterMove = false;
+        pendingPatrolDestinationFlip = false;
+
+        if (!shouldReturnToPost || !ShouldUseHomePostReturn())
+        {
+            FinishReturnToPost();
+            return false;
+        }
+
+        if (pathFinder == null)
+            return false;
+
+        GridTile homeTile = GetHomeTile();
+        if (homeTile == null)
+        {
+            shouldReturnToPost = false;
+            SetState(GetCalmState());
+            return false;
+        }
+
+        if (IsAtHomePost())
+        {
+            FinishReturnToPost();
+            Debug.Log($"{controlledUnit.name} returned to its home post.");
+            return true;
+        }
+
+        if (homeTile.isOccupied && homeTile.OccupyingUnit != controlledUnit.gameObject)
+            return false;
+
+        if (controlledUnit.IsMoving || !controlledUnit.CanMoveThisTurn())
+            return false;
+
+        List<GridTile> fullPath = pathFinder.FindPath(controlledUnit.CurrentTile, homeTile, controlledUnit);
+        if (fullPath == null || fullPath.Count <= 1)
+            return false;
+
+        List<GridTile> trimmedPath = TrimPathByMovementBudget(fullPath, controlledUnit);
+        if (trimmedPath == null || trimmedPath.Count <= 1)
+            return false;
+
+        controlledUnit.OnMovementFinished -= HandleMovementFinished;
+        controlledUnit.OnMovementFinished += HandleMovementFinished;
+
+        if (!controlledUnit.TryMove(trimmedPath))
+        {
+            controlledUnit.OnMovementFinished -= HandleMovementFinished;
+            return false;
+        }
+
+        LastActionWasMovement = true;
+        Debug.Log($"{controlledUnit.name} is returning to its home post.");
         return true;
     }
 
@@ -932,8 +1097,12 @@ public class EnemyController : MonoBehaviour
         controlledUnit.OnMovementFinished -= HandleMovementFinished;
         controlledUnit.OnMovementFinished += HandleMovementFinished;
 
-        controlledUnit.MarkMovedThisTurn();
-        controlledUnit.MoveAlongPath(trimmedPath);
+        if (!controlledUnit.TryMove(trimmedPath))
+        {
+            controlledUnit.OnMovementFinished -= HandleMovementFinished;
+            pendingPushTarget = null;
+            return false;
+        }
 
         LastActionWasMovement = true;
         Debug.Log($"{controlledUnit.name} moves to push {target.name} into {pushPlan.DestinationTile.TerrainType}.");
@@ -1092,6 +1261,8 @@ public class EnemyController : MonoBehaviour
             GridUnit visibleTarget = GetVisiblePlayerInCurrentFacing();
             if (visibleTarget == null)
             {
+                RefreshBarrelLayoutMemory(true);
+
                 BarrelInteractable visibleBarrelTarget = GetPriorityVisibleBarrelTarget();
                 if (visibleBarrelTarget != null && TrySearchVisibleBarrels(visibleBarrelTarget))
                 {
@@ -1238,11 +1409,19 @@ public class EnemyController : MonoBehaviour
         rememberedTargetUnit = null;
         lastKnownTargetTile = null;
         observedBarrelPositions.Clear();
+        suspiciousBarrelPositions.Clear();
+        hasSuspiciousInvestigationPosition = false;
+        investigatingMissingBarrelLayoutChange = false;
         prioritizeLastKnownBarrelMovement = false;
         barrelSearchInterruptedByMovingTarget = false;
         lookDirectionIndex = 0;
         lastSeenMovementDirection = Vector3.zero;
-        SetState(GetCalmState());
+
+        if (RequestReturnToPostIfNeeded())
+            SetState(EnemyAIState.ReturnToPost);
+        else
+            SetState(GetCalmState());
+
         LevelObjectiveRuntimeManager.RefreshPlayerSeenState();
     }
 
@@ -1326,7 +1505,7 @@ public class EnemyController : MonoBehaviour
 
     public BarrelInteractable GetPriorityVisibleBarrelTarget()
     {
-        if (!CanSearchKnownBarrels())
+        if (!CanSearchKnownBarrels() && !CanSearchSuspiciousBarrels())
             return null;
 
         EnemyVisionDetector detector = GetComponent<EnemyVisionDetector>();
@@ -1336,6 +1515,13 @@ public class EnemyController : MonoBehaviour
         BarrelInteractable trackedBarrel = GetTrackedVisibleTargetBarrel(detector);
         if (trackedBarrel != null)
             return trackedBarrel;
+
+        BarrelInteractable suspiciousBarrel = GetPrioritySuspiciousVisibleBarrelTarget(detector);
+        if (suspiciousBarrel != null)
+            return suspiciousBarrel;
+
+        if (!CanSearchKnownBarrels())
+            return null;
 
         if (prioritizeLastKnownBarrelMovement)
             return null;
@@ -1385,6 +1571,48 @@ public class EnemyController : MonoBehaviour
         return hiddenState != null &&
                hiddenState.CurrentBarrel != null &&
                hiddenState.BarrelKnownToEnemies;
+    }
+
+    private bool CanSearchSuspiciousBarrels()
+    {
+        return suspiciousBarrelPositions != null && suspiciousBarrelPositions.Count > 0;
+    }
+
+    private BarrelInteractable GetPrioritySuspiciousVisibleBarrelTarget(EnemyVisionDetector detector)
+    {
+        if (detector == null || !CanSearchSuspiciousBarrels() || controlledUnit == null || controlledUnit.CurrentTile == null)
+            return null;
+
+        BarrelInteractable closestBarrel = null;
+        int closestDistance = int.MaxValue;
+        BarrelInteractable[] barrels = FindObjectsByType<BarrelInteractable>(FindObjectsSortMode.None);
+
+        foreach (BarrelInteractable barrel in barrels)
+        {
+            if (barrel == null)
+                continue;
+
+            GridTile barrelTile = barrel.GetBarrelTilePublic();
+            if (barrelTile == null)
+                continue;
+
+            if (!suspiciousBarrelPositions.Contains(barrelTile.GridPosition))
+                continue;
+
+            if (!detector.CanSeeBarrel(barrel))
+                continue;
+
+            int distance = Mathf.Abs(controlledUnit.CurrentTile.X - barrelTile.X) +
+                           Mathf.Abs(controlledUnit.CurrentTile.Y - barrelTile.Y);
+
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestBarrel = barrel;
+            }
+        }
+
+        return closestBarrel;
     }
 
     private BarrelInteractable GetTrackedVisibleTargetBarrel(EnemyVisionDetector detector)
@@ -1450,7 +1678,7 @@ public class EnemyController : MonoBehaviour
         BarrelInteractable nextBarrel = firstBarrel;
         int searchedCount = 0;
 
-        while (searchedCount < maxBarrelsToSearchInOneTurn && CanSearchKnownBarrels() && controlledUnit.CanAttackThisTurn())
+        while (searchedCount < maxBarrelsToSearchInOneTurn && CanContinueBarrelSearch() && controlledUnit.CanAttackThisTurn())
         {
             if (barrelSearchInterruptedByMovingTarget)
                 break;
@@ -1561,6 +1789,11 @@ public class EnemyController : MonoBehaviour
         IsActionAnimationRunning = false;
     }
 
+    private bool CanContinueBarrelSearch()
+    {
+        return CanSearchKnownBarrels() || CanSearchSuspiciousBarrels();
+    }
+
     private void ForgetBarrelTarget(BarrelInteractable barrel)
     {
         if (barrel == null)
@@ -1568,7 +1801,13 @@ public class EnemyController : MonoBehaviour
 
         GridTile barrelTile = barrel.GetBarrelTilePublic();
         if (barrelTile != null)
+        {
             observedBarrelPositions.Remove(barrelTile.GridPosition);
+            suspiciousBarrelPositions.Remove(barrelTile.GridPosition);
+        }
+
+        if (!CanSearchSuspiciousBarrels() && !CanSearchKnownBarrels())
+            hasSuspiciousInvestigationPosition = false;
     }
 
     private bool TryBreakBarrelAsAttack(BarrelInteractable barrel, out bool foundUnit)
@@ -1656,6 +1895,16 @@ public class EnemyController : MonoBehaviour
             DestroyInteractableAtCurrentTile();
             FlipPatrolDestination();
             SetState(GetCalmState());
+            return;
+        }
+
+        if (currentState == EnemyAIState.ReturnToPost && shouldReturnToPost)
+        {
+            if (IsAtHomePost())
+            {
+                FinishReturnToPost();
+                Debug.Log($"{controlledUnit.name} returned to its home post.");
+            }
         }
     }
 
@@ -1788,6 +2037,188 @@ public class EnemyController : MonoBehaviour
 
             if (detector.CanSeeBarrel(barrel))
                 RegisterObservedBarrelPosition(barrel);
+        }
+    }
+
+    private void RefreshBarrelLayoutMemory(bool allowSuspicion)
+    {
+        if (!CanUseBarrelLayoutMemory())
+            return;
+
+        EnemyVisionDetector detector = GetComponent<EnemyVisionDetector>();
+        if (detector == null)
+            return;
+
+        List<Vector2Int> currentVisibleBarrelPositions = GetCurrentVisibleBarrelPositions(detector);
+        List<Vector2Int> currentVisibleTilePositions = GetCurrentVisibleTilePositions(detector);
+
+        if (!hasBarrelLayoutMemory)
+        {
+            rememberedBarrelLayoutPositions.Clear();
+            rememberedBarrelLayoutPositions.AddRange(currentVisibleBarrelPositions);
+            observedBarrelLayoutTilePositions.Clear();
+            observedBarrelLayoutTilePositions.AddRange(currentVisibleTilePositions);
+            hasBarrelLayoutMemory = true;
+            return;
+        }
+
+        if (allowSuspicion)
+        {
+            foreach (Vector2Int visibleBarrelPosition in currentVisibleBarrelPositions)
+            {
+                if (rememberedBarrelLayoutPositions.Contains(visibleBarrelPosition))
+                    continue;
+
+                if (!investigatingMissingBarrelLayoutChange &&
+                    !observedBarrelLayoutTilePositions.Contains(visibleBarrelPosition))
+                {
+                    continue;
+                }
+
+                RegisterSuspiciousBarrelChange(visibleBarrelPosition, true);
+            }
+
+            for (int i = 0; i < rememberedBarrelLayoutPositions.Count; i++)
+            {
+                Vector2Int rememberedPosition = rememberedBarrelLayoutPositions[i];
+                if (currentVisibleBarrelPositions.Contains(rememberedPosition))
+                    continue;
+
+                GridTile rememberedTile = gridManager != null ? gridManager.GetTileAt(rememberedPosition) : null;
+                if (rememberedTile == null || !detector.CanSeeTile(rememberedTile))
+                    continue;
+
+                RegisterMissingBarrelChange(rememberedPosition, currentVisibleBarrelPositions);
+            }
+        }
+
+        UpdateBarrelLayoutMemoryForVisibleArea(currentVisibleTilePositions, currentVisibleBarrelPositions);
+    }
+
+    private bool CanUseBarrelLayoutMemory()
+    {
+        return controlledUnit != null &&
+               controlledUnit.Team == UnitTeam.Enemy &&
+               controlledUnit.CanNoticeBarrelLayoutChanges;
+    }
+
+    private List<Vector2Int> GetCurrentVisibleBarrelPositions(EnemyVisionDetector detector)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+
+        if (detector == null)
+            return result;
+
+        BarrelInteractable[] barrels = FindObjectsByType<BarrelInteractable>(FindObjectsSortMode.None);
+        foreach (BarrelInteractable barrel in barrels)
+        {
+            if (barrel == null || !detector.CanSeeBarrel(barrel))
+                continue;
+
+            GridTile barrelTile = barrel.GetBarrelTilePublic();
+            if (barrelTile == null)
+                continue;
+
+            if (!result.Contains(barrelTile.GridPosition))
+                result.Add(barrelTile.GridPosition);
+        }
+
+        return result;
+    }
+
+    private List<Vector2Int> GetCurrentVisibleTilePositions(EnemyVisionDetector detector)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+
+        if (detector == null || gridManager == null || gridManager.Grid == null)
+            return result;
+
+        for (int x = 0; x < gridManager.Width; x++)
+        {
+            for (int y = 0; y < gridManager.Height; y++)
+            {
+                GridTile tile = gridManager.Grid[x, y];
+                if (tile == null || !detector.CanSeeTile(tile))
+                    continue;
+
+                if (!result.Contains(tile.GridPosition))
+                    result.Add(tile.GridPosition);
+            }
+        }
+
+        return result;
+    }
+
+    private void RegisterSuspiciousBarrelChange(Vector2Int gridPosition, bool hasVisibleBarrelAtPosition)
+    {
+        GridTile suspiciousTile = gridManager != null ? gridManager.GetTileAt(gridPosition) : null;
+        if (suspiciousTile == null)
+            return;
+
+        if (hasVisibleBarrelAtPosition && !suspiciousBarrelPositions.Contains(gridPosition))
+            suspiciousBarrelPositions.Add(gridPosition);
+
+        lastKnownTargetTile = suspiciousTile;
+        hasSuspiciousInvestigationPosition = true;
+        investigatingMissingBarrelLayoutChange = false;
+        shouldReturnToPost = false;
+
+        if (currentState == EnemyAIState.Idle || currentState == EnemyAIState.Patrol || currentState == EnemyAIState.ReturnToPost)
+            SetState(EnemyAIState.Investigate);
+
+        string reason = hasVisibleBarrelAtPosition ? "new barrel" : "missing barrel";
+        Debug.Log($"{controlledUnit.name} noticed a {reason} at {gridPosition} and is investigating.");
+    }
+
+    private void RegisterMissingBarrelChange(Vector2Int missingBarrelPosition, List<Vector2Int> currentVisibleBarrelPositions)
+    {
+        GridTile missingBarrelTile = gridManager != null ? gridManager.GetTileAt(missingBarrelPosition) : null;
+        if (missingBarrelTile == null)
+            return;
+
+        suspiciousBarrelPositions.Clear();
+        lastKnownTargetTile = missingBarrelTile;
+        hasSuspiciousInvestigationPosition = true;
+        investigatingMissingBarrelLayoutChange = true;
+        shouldReturnToPost = false;
+
+        if (currentState == EnemyAIState.Idle || currentState == EnemyAIState.Patrol || currentState == EnemyAIState.ReturnToPost)
+            SetState(EnemyAIState.Investigate);
+
+        Debug.Log($"{controlledUnit.name} noticed a missing barrel at {missingBarrelPosition} and will investigate where it was.");
+    }
+
+    private void ClearBarrelLayoutSuspicion()
+    {
+        suspiciousBarrelPositions.Clear();
+        hasSuspiciousInvestigationPosition = false;
+        investigatingMissingBarrelLayoutChange = false;
+
+        if (!HasInvestigationTarget() && !shouldReturnToPost)
+            SetState(GetCalmState());
+    }
+
+    private void UpdateBarrelLayoutMemoryForVisibleArea(List<Vector2Int> currentVisibleTilePositions, List<Vector2Int> currentVisibleBarrelPositions)
+    {
+        if (currentVisibleTilePositions == null || currentVisibleBarrelPositions == null)
+            return;
+
+        for (int i = rememberedBarrelLayoutPositions.Count - 1; i >= 0; i--)
+        {
+            if (currentVisibleTilePositions.Contains(rememberedBarrelLayoutPositions[i]))
+                rememberedBarrelLayoutPositions.RemoveAt(i);
+        }
+
+        foreach (Vector2Int visibleBarrelPosition in currentVisibleBarrelPositions)
+        {
+            if (!rememberedBarrelLayoutPositions.Contains(visibleBarrelPosition))
+                rememberedBarrelLayoutPositions.Add(visibleBarrelPosition);
+        }
+
+        foreach (Vector2Int visibleTilePosition in currentVisibleTilePositions)
+        {
+            if (!observedBarrelLayoutTilePositions.Contains(visibleTilePosition))
+                observedBarrelLayoutTilePositions.Add(visibleTilePosition);
         }
     }
 

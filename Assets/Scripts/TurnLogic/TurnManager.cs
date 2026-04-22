@@ -507,6 +507,7 @@ public class TurnManager : MonoBehaviour
 
             if (!acted)
             {
+                controller.RefreshAwarenessFromCurrentFacing();
                 EnemyVisionDetector.RefreshAllHiddenStates();
                 yield return new WaitForSeconds(GetEnemyDelay(0.2f));
                 continue;
@@ -569,6 +570,7 @@ public class TurnManager : MonoBehaviour
                     }
                 }
 
+                controller.RefreshAwarenessFromCurrentFacing();
                 EnemyVisionDetector.RefreshAllHiddenStates();
                 yield return new WaitForSeconds(GetEnemyDelay(0.25f));
                 continue;
@@ -592,6 +594,7 @@ public class TurnManager : MonoBehaviour
                     }
                 }
 
+                controller.RefreshAwarenessFromCurrentFacing();
                 EnemyVisionDetector.RefreshAllHiddenStates();
                 yield return new WaitForSeconds(GetEnemyDelay(0.4f));
                 continue;

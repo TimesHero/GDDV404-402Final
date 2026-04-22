@@ -71,6 +71,7 @@ public class GridUnit : MonoBehaviour
     public AIType AIType => unitData != null ? unitData.aiType : AIType.None;
     public int VisionRange => unitData != null ? unitData.visionRange : 1;
     public float VisionAngle => unitData != null ? unitData.visionAngle : 90f;
+    public bool CanNoticeBarrelLayoutChanges => unitData != null && unitData.canNoticeBarrelLayoutChanges;
     public bool CanHideInBarrel => unitData == null || unitData.canHideInBarrel;
     public bool CanBackstab => unitData != null && unitData.canBackstab;
     public float BackstabDamageMultiplier => unitData != null ? Mathf.Max(1f, unitData.backstabDamageMultiplier) : 1f;
@@ -164,6 +165,10 @@ public class GridUnit : MonoBehaviour
         if (path[0] != currentTile)
             return false;
 
+        GridTile destinationTile = path[path.Count - 1];
+        if (destinationTile != currentTile && destinationTile.isOccupied && destinationTile.OccupyingUnit != gameObject)
+            return false;
+
         int movementCost = CalculatePathMovementCost(path);
         if (movementCost <= 0)
             return false;
@@ -184,6 +189,13 @@ public class GridUnit : MonoBehaviour
 
         if (isMoving)
             return;
+
+        GridTile destinationTile = path[path.Count - 1];
+        if (destinationTile != currentTile && destinationTile.isOccupied && destinationTile.OccupyingUnit != gameObject)
+        {
+            Debug.LogWarning($"{name} cannot move to occupied tile {destinationTile.GridPosition}.");
+            return;
+        }
         
         //not in use anymore
         //List<GridTile> pathCopy = new List<GridTile>(path);
@@ -548,6 +560,13 @@ public class GridUnit : MonoBehaviour
 
         if (isMoving)
             return;
+
+        GridTile destinationTile = path[path.Count - 1];
+        if (destinationTile != currentTile && destinationTile.isOccupied && destinationTile.OccupyingUnit != gameObject)
+        {
+            Debug.LogWarning($"{name} cannot force move to occupied tile {destinationTile.GridPosition}.");
+            return;
+        }
 
         if (TurnManager.Instance != null)
             TurnManager.Instance.SetBusy();

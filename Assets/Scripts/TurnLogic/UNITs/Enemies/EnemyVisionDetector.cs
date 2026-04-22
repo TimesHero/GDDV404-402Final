@@ -117,6 +117,19 @@ public class EnemyVisionDetector : MonoBehaviour
         return canSee;
     }
 
+    public bool CanSeeTile(GridTile tile)
+    {
+        if (ownerUnit == null || tile == null)
+            return false;
+
+        Vector3 targetPosition = tile.transform.position + Vector3.up * barrelTargetHeightOffset;
+
+        if (!IsTargetWithinVisionCone(targetPosition, tile))
+            return false;
+
+        return HasGridObstacleLineOfSight(tile);
+    }
+
     public static bool CanAnyEnemySeeUnit(GridUnit targetUnit)
     {
         EnemyVisionDetector[] detectors = FindObjectsByType<EnemyVisionDetector>(FindObjectsSortMode.None);
