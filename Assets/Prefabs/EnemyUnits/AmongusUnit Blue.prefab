@@ -43,7 +43,10 @@ GameObject:
   - component: {fileID: 4821790892492630797}
   - component: {fileID: 5741040883839400063}
   - component: {fileID: 958941310754664356}
+  - component: {fileID: 3051801784592711001}
   - component: {fileID: 7552687097517614618}
+  - component: {fileID: 956686779677392425}
+  - component: {fileID: -896370254304125230}
   m_Layer: 0
   m_Name: AmongusUnit Blue
   m_TagString: Untagged
@@ -105,6 +108,56 @@ MonoBehaviour:
   gridManager: {fileID: 0}
   controlledUnit: {fileID: 5741040883839400063}
   pathFinder: {fileID: 0}
+  interactablePlacementService: {fileID: 0}
+  stateFeedbackController: {fileID: 0}
+  defaultState: 0
+  currentState: 0
+  configuredBehavior: 0
+  hasPatrolRoute: 0
+  patrolStartGridPosition: {x: 0, y: 0}
+  patrolEndGridPosition: {x: 0, y: 0}
+  logStateChanges: 1
+  rememberedTargetUnit: {fileID: 0}
+  lastKnownTargetTile: {fileID: 0}
+  observedBarrelPositions: []
+  lookDirectionIndex: 0
+  investigationLookPause: 0.45
+  lastSeenMovementDirection: {x: 0, y: 0, z: 0}
+  prioritizeLastKnownBarrelMovement: 0
+  maxBarrelsToSearchInOneTurn: 8
+  barrelSearchMovementTimeout: 8
+--- !u!114 &3051801784592711001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7081758415280801425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b48817f51ccd5884ead82b183eb771c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyVisionDetector
+  ownerUnit: {fileID: 5741040883839400063}
+  obstacleManager: {fileID: 0}
+  gridManager: {fileID: 0}
+  eyeOffset: {x: 0, y: 1.25, z: 0}
+  lineOfSightMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  unitTargetHeightOffset: 1
+  barrelTargetHeightOffset: 0.6
+  drawVisionGizmo: 1
+  drawOnlyWhenSelected: 0
+  visionArcColor: {r: 1, g: 0.85, b: 0.2, a: 0.9}
+  visionFillColor: {r: 1, g: 0.85, b: 0.2, a: 0.08}
+  eyePointColor: {r: 1, g: 0.4, b: 0.2, a: 0.9}
+  gizmoArcSegments: 28
+  drawVisionInGame: 1
+  showGameVisionOnlyWhenSelected: 0
+  gameVisionHeightOffset: 1
+  gameVisionLineWidth: 0.06
+  gameVisionSegments: 36
 --- !u!65 &7552687097517614618
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -126,6 +179,118 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.77062726, y: 1.0985731, z: 0.7932193}
   m_Center: {x: 0.11204344, y: 0.5303263, z: 0.11545426}
+--- !u!114 &956686779677392425
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7081758415280801425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1a75b703f199b04fa3bb026fe1c1727, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyStateFeedbackController
+  feedbackData: {fileID: 11400000, guid: 000033fe08e40d84093e429258b1f40e, type: 2}
+  musicAudioSource: {fileID: -896370254304125230}
+  useSharedMusicSource: 1
+--- !u!82 &-896370254304125230
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7081758415280801425}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 0.771
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1001 &6860220505823869156
 PrefabInstance:
   m_ObjectHideFlags: 0

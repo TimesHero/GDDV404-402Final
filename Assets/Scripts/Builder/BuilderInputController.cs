@@ -14,8 +14,17 @@ public class BuilderInputController : MonoBehaviour
     
     [Header("Hover")]
     [SerializeField] private Color hoverColor = Color.magenta;
+    [SerializeField] private Color objectiveHoverColor = Color.cyan;
+    [SerializeField] private Color objectiveSelectedColor = Color.green;
+    [SerializeField] private Color patrolEndHoverColor = new Color(1f, 0.55f, 0.1f, 0.55f);
+    [SerializeField] private Color patrolStartSelectedColor = Color.green;
 
     private GridTile previousHoveredTile;
+    private bool isPickingObjectiveTile;
+    private GridTile selectedObjectiveTile;
+    private bool isPickingEnemyPatrolEndTile;
+    private GridTile selectedEnemyPatrolStartTile;
+    private PlacedBuilderUnit pendingEnemyPatrolUnit;
     
     [Header("References")]
     [SerializeField] private BuilderStateController builderStateController;
@@ -27,12 +36,46 @@ public class BuilderInputController : MonoBehaviour
     [SerializeField] private Transform enemyUnitParent;
     [SerializeField] private BuilderUnitRegistry builderUnitRegistry;
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+    [SerializeField] private UnitPlacementService unitPlacementService;
+    [SerializeField] private BuilderUIController builderUIController;
 
     private InputSystem_Actions inputActions;
     private Vector2 pointerPosition;
     private GridTile currentHoveredTile;
 
     public GridTile CurrentHoveredTile => currentHoveredTile;
+    
+    public GridTile SelectedObjectiveTile => selectedObjectiveTile;
+    public bool IsPickingObjectiveTile => isPickingObjectiveTile;
+    public bool IsPickingEnemyPatrolEndTile => isPickingEnemyPatrolEndTile;
+
+    public void SetObjectiveTilePickMode(bool isEnabled)
+    {
+        isPickingObjectiveTile = isEnabled;
+
+        if (isPickingObjectiveTile)
+            CancelEnemyPatrolEndSelection();
+
+        if (!isPickingObjectiveTile)
+        {
+            selectedObjectiveTile = null;
+            ClearBrushHoverHighlight();
+
+            if (currentHoveredTile != null)
+                ApplyBrushHoverHighlight(currentHoveredTile);
+        }
+    }
+
+    public void ClearSelectedObjectiveTile()
+    {
+        selectedObjectiveTile = null;
+
+        ClearBrushHoverHighlight();
+
+        if (currentHoveredTile != null)
+            ApplyBrushHoverHighlight(currentHoveredTile);
+    }
 
     private void Awake()
     {
@@ -41,7 +84,10 @@ public class BuilderInputController : MonoBehaviour
     
     private bool IsUIBlockingSceneInteraction()
     {
-        return blockingUIPanel != null && blockingUIPanel.activeInHierarchy;
+        bool explicitBlockingPanelOpen = blockingUIPanel != null && blockingUIPanel.activeInHierarchy;
+        bool loadLevelPanelOpen = builderUIController != null && builderUIController.IsLoadLevelPanelOpen;
+
+        return explicitBlockingPanelOpen || loadLevelPanelOpen;
     }
 
     private void OnEnable()
@@ -80,6 +126,15 @@ public class BuilderInputController : MonoBehaviour
             UpdateHoveredTile();
         }
 
+        if (isPickingObjectiveTile)
+        {
+            RefreshObjectiveTileSelectionVisuals();
+        }
+        else if (isPickingEnemyPatrolEndTile)
+        {
+            RefreshEnemyPatrolSelectionVisuals();
+        }
+
         UpdatePlacementKeyboardRotation();
     }
     
@@ -88,14 +143,48 @@ public class BuilderInputController : MonoBehaviour
         if (placementRotationAnchorTile == null)
             return;
 
-        ClearBrushHoverHighlight();
-
         if (currentHoveredTile != placementRotationAnchorTile)
-        {
             currentHoveredTile = placementRotationAnchorTile;
+
+        ApplyBrushHoverHighlight(placementRotationAnchorTile);
+    }
+    
+    private void RefreshObjectiveTileSelectionVisuals()
+    {
+        if (currentHoveredTile != null)
+        {
+            currentHoveredTile.SetHoverHighlight(objectiveHoverColor);
+
+            if (!currentBrushHoverTiles.Contains(currentHoveredTile))
+                currentBrushHoverTiles.Add(currentHoveredTile);
         }
 
-        currentHoveredTile.SetHoverHighlight(hoverColor);
+        if (selectedObjectiveTile != null)
+        {
+            selectedObjectiveTile.SetHoverHighlight(objectiveSelectedColor);
+
+            if (!currentBrushHoverTiles.Contains(selectedObjectiveTile))
+                currentBrushHoverTiles.Add(selectedObjectiveTile);
+        }
+    }
+
+    private void RefreshEnemyPatrolSelectionVisuals()
+    {
+        if (currentHoveredTile != null)
+        {
+            currentHoveredTile.SetHoverHighlight(patrolEndHoverColor);
+
+            if (!currentBrushHoverTiles.Contains(currentHoveredTile))
+                currentBrushHoverTiles.Add(currentHoveredTile);
+        }
+
+        if (selectedEnemyPatrolStartTile != null)
+        {
+            selectedEnemyPatrolStartTile.SetHoverHighlight(patrolStartSelectedColor);
+
+            if (!currentBrushHoverTiles.Contains(selectedEnemyPatrolStartTile))
+                currentBrushHoverTiles.Add(selectedEnemyPatrolStartTile);
+        }
     }
 
     private void OnPointerMove(InputAction.CallbackContext context)
@@ -142,6 +231,46 @@ public class BuilderInputController : MonoBehaviour
         }
 
         Debug.Log($"Placed obstacle {selectedObstacle.name} at {tile.GridPosition}");
+    }
+    
+    private void PlaceInteractable(GridTile tile)
+    {
+        if (tile == null)
+            return;
+
+        if (builderStateController == null)
+        {
+            Debug.LogError("BuilderInputController: BuilderStateController is missing.");
+            return;
+        }
+
+        if (interactablePlacementService == null)
+        {
+            Debug.LogError("BuilderInputController: InteractablePlacementService is missing.");
+            return;
+        }
+
+        InteractableData selectedInteractable = builderStateController.SelectedInteractableData;
+
+        if (selectedInteractable == null)
+        {
+            Debug.LogWarning("No interactable selected.");
+            return;
+        }
+
+        bool placed = interactablePlacementService.TryPlaceInteractable(
+            selectedInteractable,
+            tile,
+            builderStateController.SelectedInteractableRotationY
+        );
+
+        if (!placed)
+        {
+            Debug.Log($"Failed to place interactable {selectedInteractable.displayName} at {tile.GridPosition}");
+            return;
+        }
+
+        Debug.Log($"Placed interactable {selectedInteractable.displayName} at {tile.GridPosition}");
     }
 
     private void UpdateHoveredTile()
@@ -213,6 +342,11 @@ public class BuilderInputController : MonoBehaviour
             }
         }
         
+        if (interactablePlacementService != null)
+        {
+            interactablePlacementService.RemoveInteractableAtTile(tile);
+        }
+        
         tile.terrainType = TerrainType.Ground;
         tile.ApplyTerrainSettings();
 
@@ -220,6 +354,9 @@ public class BuilderInputController : MonoBehaviour
     }
     private void OnEraseClick(InputAction.CallbackContext context)
     {
+        if (isPickingObjectiveTile || isPickingEnemyPatrolEndTile)
+            return;
+
         if (currentHoveredTile == null)
             return;
 
@@ -238,6 +375,20 @@ public class BuilderInputController : MonoBehaviour
             if (removedObstacle)
             {
                 Debug.Log($"Removed obstacle at {tile.GridPosition}");
+                return;
+            }
+        }
+
+        if (TryRemovePatrolEndMarkerAtTile(tile))
+            return;
+        
+        if (interactablePlacementService != null)
+        {
+            bool removedInteractable = interactablePlacementService.RemoveInteractableAtTile(tile);
+
+            if (removedInteractable)
+            {
+                Debug.Log($"Removed interactable at {tile.GridPosition}");
                 return;
             }
         }
@@ -266,6 +417,12 @@ public class BuilderInputController : MonoBehaviour
             return;
         }
 
+        if (unitPlacementService == null)
+        {
+            Debug.LogError("BuilderInputController: UnitPlacementService is missing.");
+            return;
+        }
+
         UnitData selectedUnitData = builderStateController.SelectedUnitData;
 
         if (selectedUnitData == null)
@@ -274,63 +431,100 @@ public class BuilderInputController : MonoBehaviour
             return;
         }
 
-        if (selectedUnitData.unitPrefab == null)
-        {
-            Debug.LogWarning($"BuilderInputController: UnitData {selectedUnitData.unitName} has no prefab assigned.");
-            return;
-        }
-
-        if (!tile.isWalkable)
-        {
-            Debug.Log($"Cannot place unit on tile {tile.GridPosition} because it is not walkable.");
-            return;
-        }
-
-        if (tile.isOccupied)
-        {
-            Debug.Log($"Cannot place unit on tile {tile.GridPosition} because it is already occupied.");
-            return;
-        }
-        
-        Transform targetParent = builderStateController.SelectedUnitPaintTeam == BuilderUnitPaintTeam.Player
-            ? playerUnitParent
-            : enemyUnitParent;
-
-        Vector3 unitEuler = Vector3.zero;
-        unitEuler.y = builderStateController.SelectedUnitRotationY;
-
-        GameObject spawnedObject = Instantiate(
-            selectedUnitData.unitPrefab,
-            Vector3.zero,
-            Quaternion.Euler(unitEuler),
-            targetParent
+        bool placed = unitPlacementService.TryPlaceUnit(
+            selectedUnitData,
+            tile,
+            builderStateController.SelectedUnitRotationY,
+            builderStateController.SelectedUnitPaintTeam,
+            builderStateController.SelectedUnitUsesCardinalFacing,
+            out PlacedBuilderUnit placedUnit
         );
-        GridUnit gridUnit = spawnedObject.GetComponent<GridUnit>();
 
-        if (gridUnit == null)
+        if (!placed)
         {
-            Debug.LogError($"BuilderInputController: Spawned prefab {selectedUnitData.unitPrefab.name} has no GridUnit component.");
-            Destroy(spawnedObject);
+            Debug.Log($"Failed to place unit {selectedUnitData.unitName} at {tile.GridPosition}");
             return;
         }
 
-        gridUnit.InitializeFromData(selectedUnitData);
-        gridUnit.PlaceOnTile(tile);
-        
-        PlacedBuilderUnit placedBuilderUnit = new PlacedBuilderUnit
-        {
-            Unit = gridUnit,
-            UnitData = selectedUnitData,
-            Origin = tile.GridPosition,
-            FootprintSize = Vector2Int.one
-        };
-
-        placedBuilderUnit.OccupiedTiles.Add(tile);
-
-        if (builderUnitRegistry != null)
-            builderUnitRegistry.RegisterPlacedUnit(placedBuilderUnit);
+        ConfigurePlacedUnitAI(placedUnit, tile);
 
         Debug.Log($"Placed unit {selectedUnitData.unitName} at {tile.GridPosition}");
+    }
+
+    private void ConfigurePlacedUnitAI(PlacedBuilderUnit placedUnit, GridTile startTile)
+    {
+        if (placedUnit == null || builderStateController == null || startTile == null)
+            return;
+
+        if (builderStateController.SelectedUnitPaintTeam != BuilderUnitPaintTeam.Enemy)
+        {
+            placedUnit.EnemyBehavior = EnemyAIBehavior.Static;
+            placedUnit.HasPatrolRoute = false;
+            return;
+        }
+
+        placedUnit.EnemyBehavior = builderStateController.SelectedEnemyBehavior;
+        placedUnit.PatrolStart = startTile.GridPosition;
+
+        if (placedUnit.EnemyBehavior == EnemyAIBehavior.Patrol)
+            BeginEnemyPatrolEndSelection(placedUnit, startTile);
+    }
+
+    private void BeginEnemyPatrolEndSelection(PlacedBuilderUnit placedUnit, GridTile startTile)
+    {
+        pendingEnemyPatrolUnit = placedUnit;
+        selectedEnemyPatrolStartTile = startTile;
+        isPickingEnemyPatrolEndTile = true;
+
+        ClearBrushHoverHighlight();
+        RefreshEnemyPatrolSelectionVisuals();
+
+        Debug.Log($"Patrol start selected: {startTile.GridPosition}. Select the patrol end tile.");
+    }
+
+    private void CompleteEnemyPatrolEndSelection(GridTile endTile)
+    {
+        if (pendingEnemyPatrolUnit == null || selectedEnemyPatrolStartTile == null || endTile == null)
+            return;
+
+        if (!endTile.isWalkable)
+        {
+            Debug.Log("Patrol end tile must be walkable.");
+            return;
+        }
+
+        if (endTile == selectedEnemyPatrolStartTile)
+        {
+            Debug.Log("Patrol end tile must be different from the patrol start tile.");
+            return;
+        }
+
+        if (endTile.isOccupied && endTile.OccupyingUnit != null)
+        {
+            Debug.Log("Patrol end tile cannot be occupied.");
+            return;
+        }
+
+        pendingEnemyPatrolUnit.EnemyBehavior = EnemyAIBehavior.Patrol;
+        pendingEnemyPatrolUnit.HasPatrolRoute = true;
+        pendingEnemyPatrolUnit.PatrolStart = selectedEnemyPatrolStartTile.GridPosition;
+        pendingEnemyPatrolUnit.PatrolEnd = endTile.GridPosition;
+
+        if (unitPlacementService != null)
+            unitPlacementService.CreatePatrolEndMarker(pendingEnemyPatrolUnit, endTile);
+
+        Debug.Log($"Patrol route set: {pendingEnemyPatrolUnit.PatrolStart} -> {pendingEnemyPatrolUnit.PatrolEnd}");
+
+        isPickingEnemyPatrolEndTile = false;
+        pendingEnemyPatrolUnit = null;
+        selectedEnemyPatrolStartTile = null;
+
+        ClearBrushHoverHighlight();
+        if (endTile.OccupyingUnit == null)
+        {
+            endTile.SetHoverHighlight(patrolStartSelectedColor);
+            currentBrushHoverTiles.Add(endTile);
+        }
     }
     
     private GridUnit GetUnitOnTile(GridTile tile)
@@ -351,6 +545,9 @@ public class BuilderInputController : MonoBehaviour
             PlacedBuilderUnit placedUnit = builderUnitRegistry.GetPlacedUnitAtTile(tile);
             if (placedUnit != null)
             {
+                if (unitPlacementService != null)
+                    unitPlacementService.DestroyPatrolEndMarker(placedUnit);
+
                 foreach (GridTile occupiedTile in placedUnit.OccupiedTiles)
                 {
                     if (occupiedTile == null)
@@ -373,6 +570,32 @@ public class BuilderInputController : MonoBehaviour
 
         Debug.Log($"Removed unit from tile {tile?.GridPosition}");
     }
+
+    private bool TryRemovePatrolEndMarkerAtTile(GridTile tile)
+    {
+        if (tile == null || tile.OccupyingUnit == null || builderUnitRegistry == null)
+            return false;
+
+        IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+        foreach (PlacedBuilderUnit placedUnit in placedUnits)
+        {
+            if (placedUnit == null || placedUnit.PatrolEndMarker != tile.OccupyingUnit)
+                continue;
+
+            if (unitPlacementService != null)
+                unitPlacementService.DestroyPatrolEndMarker(placedUnit);
+            else
+                tile.SetOccupant(null);
+
+            placedUnit.HasPatrolRoute = false;
+            placedUnit.EnemyBehavior = EnemyAIBehavior.Static;
+
+            Debug.Log($"Removed patrol end marker at {tile.GridPosition}.");
+            return true;
+        }
+
+        return false;
+    }
     
     private void PaintElevation(GridTile centerTile)
     {
@@ -389,6 +612,7 @@ public class BuilderInputController : MonoBehaviour
         List<GridTile> brushTiles = GetTilesInBrush(centerTile);
 
         HashSet<PlacedObstacle> affectedObstacles = new HashSet<PlacedObstacle>();
+        HashSet<PlacedInteractable> affectedInteractables = new HashSet<PlacedInteractable>();
         HashSet<PlacedBuilderUnit> affectedUnits = new HashSet<PlacedBuilderUnit>();
 
         foreach (GridTile tile in brushTiles)
@@ -402,6 +626,16 @@ public class BuilderInputController : MonoBehaviour
                 if (placedObstacle != null)
                 {
                     affectedObstacles.Add(placedObstacle);
+                    continue;
+                }
+            }
+
+            if (interactablePlacementService != null)
+            {
+                PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+                if (placedInteractable != null)
+                {
+                    affectedInteractables.Add(placedInteractable);
                     continue;
                 }
             }
@@ -427,6 +661,12 @@ public class BuilderInputController : MonoBehaviour
                 obstacleManager.SetObstacleElevation(obstacle, selectedElevation);
         }
 
+        foreach (PlacedInteractable placedInteractable in affectedInteractables)
+        {
+            if (interactablePlacementService != null)
+                interactablePlacementService.SetInteractableElevation(placedInteractable, selectedElevation);
+        }
+
         foreach (PlacedBuilderUnit placedUnit in affectedUnits)
         {
             SetUnitGroupElevation(placedUnit, selectedElevation);
@@ -449,7 +689,8 @@ public class BuilderInputController : MonoBehaviour
                 tileElevation.SetElevation(newElevation);
         }
 
-        placedUnit.Unit.PlaceOnTile(placedUnit.Unit.CurrentTile);
+        if (unitPlacementService != null)
+            unitPlacementService.RefreshPlacedUnitTransform(placedUnit);
     }
     
     private List<GridTile> GetTilesInBrush(GridTile centerTile)
@@ -497,25 +738,36 @@ public class BuilderInputController : MonoBehaviour
         bool rotateRight = Keyboard.current.rightArrowKey.wasPressedThisFrame;
         bool rotateUp = Keyboard.current.upArrowKey.wasPressedThisFrame;
         bool rotateDown = Keyboard.current.downArrowKey.wasPressedThisFrame;
-
+        
         switch (builderStateController.CurrentToolMode)
         {
             case BuilderToolMode.ObstaclePaint:
                 if (rotateLeft)
-                    builderStateController.SetSelectedObstacleRotationY(builderStateController.SelectedObstacleRotationY - 90);
+                    builderStateController.SetSelectedObstacleRotationY(270);
                 else if (rotateRight)
-                    builderStateController.SetSelectedObstacleRotationY(builderStateController.SelectedObstacleRotationY + 90);
+                    builderStateController.SetSelectedObstacleRotationY(90);
                 else if (rotateUp)
                     builderStateController.SetSelectedObstacleRotationY(0);
                 else if (rotateDown)
                     builderStateController.SetSelectedObstacleRotationY(180);
                 break;
 
+            case BuilderToolMode.InteractablePaint:
+                if (rotateLeft)
+                    builderStateController.SetSelectedInteractableRotationY(270);
+                else if (rotateRight)
+                    builderStateController.SetSelectedInteractableRotationY(90);
+                else if (rotateUp)
+                    builderStateController.SetSelectedInteractableRotationY(0);
+                else if (rotateDown)
+                    builderStateController.SetSelectedInteractableRotationY(180);
+                break;
+
             case BuilderToolMode.UnitPaint:
                 if (rotateLeft)
-                    builderStateController.SetSelectedUnitRotationY(builderStateController.SelectedUnitRotationY - 90);
+                    builderStateController.SetSelectedUnitRotationY(270);
                 else if (rotateRight)
-                    builderStateController.SetSelectedUnitRotationY(builderStateController.SelectedUnitRotationY + 90);
+                    builderStateController.SetSelectedUnitRotationY(90);
                 else if (rotateUp)
                     builderStateController.SetSelectedUnitRotationY(0);
                 else if (rotateDown)
@@ -528,7 +780,27 @@ public class BuilderInputController : MonoBehaviour
     {
         if (IsUIBlockingSceneInteraction())
             return;
-        
+
+        if (isPickingEnemyPatrolEndTile)
+        {
+            if (currentHoveredTile != null)
+                CompleteEnemyPatrolEndSelection(currentHoveredTile);
+
+            return;
+        }
+
+        if (isPickingObjectiveTile)
+        {
+            if (currentHoveredTile != null)
+            {
+                selectedObjectiveTile = currentHoveredTile;
+                RefreshObjectiveTileSelectionVisuals();
+                Debug.Log($"Objective tile selected: {selectedObjectiveTile.GridPosition}");
+            }
+
+            return;
+        }
+    
         if (builderStateController == null || currentHoveredTile == null)
             return;
 
@@ -543,6 +815,7 @@ public class BuilderInputController : MonoBehaviour
                 break;
 
             case BuilderToolMode.ObstaclePaint:
+            case BuilderToolMode.InteractablePaint:
             case BuilderToolMode.UnitPaint:
                 placementRotationAnchorTile = currentHoveredTile;
                 placementRotationAnchorWorld = GetTileTopCenter(currentHoveredTile);
@@ -569,6 +842,10 @@ public class BuilderInputController : MonoBehaviour
                 PlaceObstacle(placementRotationAnchorTile);
                 break;
 
+            case BuilderToolMode.InteractablePaint:
+                PlaceInteractable(placementRotationAnchorTile);
+                break;
+
             case BuilderToolMode.UnitPaint:
                 PlaceUnit(placementRotationAnchorTile);
                 break;
@@ -583,6 +860,26 @@ public class BuilderInputController : MonoBehaviour
         currentHoveredTile = null;
 
         UpdateHoveredTile();
+    }
+
+    private void CancelEnemyPatrolEndSelection()
+    {
+        if (!isPickingEnemyPatrolEndTile)
+            return;
+
+        if (pendingEnemyPatrolUnit != null)
+        {
+            if (unitPlacementService != null)
+                unitPlacementService.DestroyPatrolEndMarker(pendingEnemyPatrolUnit);
+
+            pendingEnemyPatrolUnit.EnemyBehavior = EnemyAIBehavior.Static;
+            pendingEnemyPatrolUnit.HasPatrolRoute = false;
+        }
+
+        isPickingEnemyPatrolEndTile = false;
+        pendingEnemyPatrolUnit = null;
+        selectedEnemyPatrolStartTile = null;
+        ClearBrushHoverHighlight();
     }
     
     private Vector3 GetTileTopCenter(GridTile tile)
@@ -615,9 +912,9 @@ public class BuilderInputController : MonoBehaviour
         if (centerTile == null)
             return;
 
-        List<GridTile> brushTiles = GetTilesInBrush(centerTile);
+        List<GridTile> hoverTiles = GetHoverTilesForCurrentTool(centerTile);
 
-        foreach (GridTile tile in brushTiles)
+        foreach (GridTile tile in hoverTiles)
         {
             if (tile == null)
                 continue;
@@ -625,5 +922,131 @@ public class BuilderInputController : MonoBehaviour
             tile.SetHoverHighlight(hoverColor);
             currentBrushHoverTiles.Add(tile);
         }
+    }
+    
+    private List<GridTile> GetHoverTilesForCurrentTool(GridTile centerTile)
+    {
+        if (centerTile == null || builderStateController == null)
+            return new List<GridTile>();
+
+        switch (builderStateController.CurrentToolMode)
+        {
+            case BuilderToolMode.ObstaclePaint:
+            {
+                ObstacleData obstacleData = builderStateController.SelectedObstacleData;
+                if (obstacleData == null)
+                    return new List<GridTile>();
+
+                return GetTilesFromFootprint(
+                    centerTile,
+                    obstacleData.FootprintSize,
+                    builderStateController.SelectedObstacleRotationY
+                );
+            }
+
+            case BuilderToolMode.InteractablePaint:
+            {
+                InteractableData interactableData = builderStateController.SelectedInteractableData;
+                if (interactableData == null)
+                    return new List<GridTile>();
+
+                return GetTilesFromFootprint(
+                    centerTile,
+                    interactableData.footprint,
+                    builderStateController.SelectedInteractableRotationY
+                );
+            }
+
+            case BuilderToolMode.UnitPaint:
+            {
+                UnitData unitData = builderStateController.SelectedUnitData;
+                if (unitData == null)
+                    return new List<GridTile>();
+
+                return GetTilesFromFootprint(
+                    centerTile,
+                    unitData.footprintSize,
+                    builderStateController.SelectedUnitRotationY
+                );
+            }
+
+            case BuilderToolMode.TerrainPaint:
+            case BuilderToolMode.ElevationPaint:
+            case BuilderToolMode.Erase:
+            default:
+                return GetTilesInBrush(centerTile);
+        }
+    }
+
+    private List<GridTile> GetTilesFromFootprint(GridTile originTile, Vector2Int footprintSize, int rotationY)
+    {
+        List<GridTile> result = new List<GridTile>();
+
+        if (originTile == null || gridManager == null)
+            return result;
+
+        List<Vector2Int> offsets = GetRotatedFootprintOffsets(footprintSize, rotationY);
+
+        foreach (Vector2Int offset in offsets)
+        {
+            Vector2Int tilePos = new Vector2Int(originTile.X + offset.x, originTile.Y + offset.y);
+
+            if (!gridManager.isInsideGrid(tilePos))
+                continue;
+
+            GridTile tile = gridManager.GetTileAt(tilePos);
+            if (tile != null)
+                result.Add(tile);
+        }
+
+        return result;
+    }
+
+    private List<Vector2Int> GetRotatedFootprintOffsets(Vector2Int footprintSize, int rotationY)
+    {
+        List<Vector2Int> offsets = new List<Vector2Int>();
+
+        int width = Mathf.Max(1, footprintSize.x);
+        int height = Mathf.Max(1, footprintSize.y);
+        int normalizedRotation = NormalizeRotation(rotationY);
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int offset = new Vector2Int(x, y);
+
+                switch (normalizedRotation)
+                {
+                    case 90:
+                        offset = new Vector2Int(y, -x);
+                        break;
+
+                    case 180:
+                        offset = new Vector2Int(-x, -y);
+                        break;
+
+                    case 270:
+                        offset = new Vector2Int(-y, x);
+                        break;
+                }
+
+                offsets.Add(offset);
+            }
+        }
+
+        return offsets;
+    }
+
+    private int NormalizeRotation(int rotationY)
+    {
+        rotationY %= 360;
+        if (rotationY < 0)
+            rotationY += 360;
+
+        if (rotationY >= 315 || rotationY < 45) return 0;
+        if (rotationY >= 45 && rotationY < 135) return 90;
+        if (rotationY >= 135 && rotationY < 225) return 180;
+        return 270;
     }
 }

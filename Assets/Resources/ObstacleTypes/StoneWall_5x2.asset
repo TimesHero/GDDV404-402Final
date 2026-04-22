@@ -40,6 +40,8 @@ MonoBehaviour:
   obstacleId: Obstacle
   obstaclePrefab: {fileID: 919132149155446097, guid: 8c827cebfdc61a94daf7e83fb351861c, type: 3}
   blocksMovement: 1
+  visionOcclusion: 3
+  partialVisionVisibilityChance: 0.91
   footprintSize: {x: 4, y: 2}
   paintTerrainUnderObstacle: 1
   terrainTypeUnderObstacle: 1

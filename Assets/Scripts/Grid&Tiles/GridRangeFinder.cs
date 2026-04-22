@@ -4,6 +4,13 @@ using UnityEngine;
 public class GridRangeFinder : MonoBehaviour
 {
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+
+    private void Awake()
+    {
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+    }
 
     public Dictionary<GridTile, int> GetReachableTiles(GridTile startTile, int movementBudget, GridUnit unit)
     {
@@ -40,19 +47,26 @@ public class GridRangeFinder : MonoBehaviour
                 if (!neighbor.isWalkable)
                     continue;
 
-                if (neighbor.isOccupied && neighbor != startTile)
+                if (neighbor.isOccupied && neighbor != startTile && neighbor.OccupyingUnit != null)
                     continue;
 
                 if (!CanTraverseElevation(currentTile, neighbor, unit))
                     continue;
-                
+
+                BarrelInteractable barrel = GetBarrelOnTile(neighbor);
+                bool blocksTraversal = barrel != null && neighbor != startTile;
+
                 int destinationCost = currentCost + neighbor.GetTraversalCost(true);
 
-                if (destinationCost <= movementBudget)
+                if (destinationCost <= movementBudget &&
+                    (!blocksTraversal || CanUseBarrelAsDestination(unit, barrel)))
                 {
                     if (!reachableTiles.ContainsKey(neighbor) || destinationCost < reachableTiles[neighbor])
                         reachableTiles[neighbor] = destinationCost;
                 }
+
+                if (blocksTraversal)
+                    continue;
                 
                 int traversalCost = currentCost + neighbor.GetTraversalCost(false);
 
@@ -100,6 +114,31 @@ public class GridRangeFinder : MonoBehaviour
         int climbDelta = toElevation - fromElevation;
 
         return climbDelta <= unit.MaxClimbHeight;
+    }
+
+    private BarrelInteractable GetBarrelOnTile(GridTile tile)
+    {
+        if (tile == null)
+            return null;
+
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+
+        if (interactablePlacementService == null)
+            return null;
+
+        PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+        return placedInteractable != null
+            ? placedInteractable.GetComponent<BarrelInteractable>()
+            : null;
+    }
+
+    private bool CanUseBarrelAsDestination(GridUnit unit, BarrelInteractable barrel)
+    {
+        return unit != null &&
+               unit.Team == UnitTeam.Player &&
+               barrel != null &&
+               barrel.CanUnitHideHere(unit);
     }
 
     private GridTile GetLowestCostTile(List<GridTile> openList, Dictionary<GridTile, int> costs)

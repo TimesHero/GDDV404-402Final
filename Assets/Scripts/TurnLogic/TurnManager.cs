@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class TurnManager : MonoBehaviour
 {
+    [SerializeField] private LevelObjectiveRuntimeManager objectiveRuntimeManager;
+    
     [Header("Restart Turn")]
     [SerializeField] private int maxRestartTurnUses = 1;
 
@@ -43,6 +45,7 @@ public class TurnManager : MonoBehaviour
     [SerializeField] private UnitSpawner playerSpawner;
     [SerializeField] private EnemySpawner enemySpawner;
     [SerializeField] private float enemyTurnDelay = 0.75f;
+    [SerializeField, Min(1f)] private float enemyActionSafetyTimeout = 8f;
 
     private InputSystem_Actions inputActions;
 
@@ -272,10 +275,19 @@ public class TurnManager : MonoBehaviour
         foreach (GridUnit unit in allUnits)
         {
             if (unit != null && unit.Team == UnitTeam.Player)
+            {
                 unit.ResetTurnState();
+                unit.ApplyTerrainStartTurnEffects();
+            }
         }
+
+        EnemyVisionDetector.RefreshAllHiddenStates();
         CapturePlayerTurnSnapshot();
+        
+        if (objectiveRuntimeManager != null)
+            objectiveRuntimeManager.OnPlayerTurnStarted();
         Debug.Log("Turn State: Player Turn");
+        
     }
     
     private void CapturePlayerTurnSnapshot()
@@ -300,6 +312,8 @@ public class TurnManager : MonoBehaviour
                 wasDead = unit.IsDead || !unit.gameObject.activeSelf,
                 hasMovedThisTurn = unit.HasMovedThisTurn,
                 hasAttackedThisTurn = unit.HasAttackedThisTurn,
+                attacksUsedThisTurn = unit.AttacksUsedThisTurn,
+                remainingMovementPoints = unit.RemainingMovementPoints,
                 visualRotation = unit.GetVisualRotation()
             };
 
@@ -356,7 +370,11 @@ public class TurnManager : MonoBehaviour
 
             unit.RestoreAliveState(snapshot.wasDead);
             unit.RestoreHealth(snapshot.currentHP);
-            unit.RestoreTurnState(snapshot.hasMovedThisTurn, snapshot.hasAttackedThisTurn);
+            unit.RestoreTurnState(
+                snapshot.hasMovedThisTurn,
+                snapshot.attacksUsedThisTurn,
+                snapshot.remainingMovementPoints
+            );
 
             if (!snapshot.wasDead)
             {
@@ -412,7 +430,10 @@ public class TurnManager : MonoBehaviour
         foreach (GridUnit unit in allUnits)
         {
             if (unit != null && unit.Team == UnitTeam.Enemy)
+            {
                 unit.ResetTurnState();
+                unit.ApplyTerrainStartTurnEffects();
+            }
         }
 
         Debug.Log("Turn State: Enemy Turn");
@@ -423,9 +444,19 @@ public class TurnManager : MonoBehaviour
     public void EndTurn()
     {
         if (CurrentTurn == TurnState.PlayerTurn)
+        {
+            if (objectiveRuntimeManager != null)
+                objectiveRuntimeManager.OnPlayerTurnEnded();
+
+            if (BattleStateManager.Instance != null && BattleStateManager.Instance.BattleEnded)
+                return;
+
             StartEnemyTurn();
+        }
         else if (CurrentTurn == TurnState.EnemyTurn)
+        {
             StartPlayerTurn();
+        }
     }
     private void OnValidate()
     {
@@ -456,70 +487,179 @@ public class TurnManager : MonoBehaviour
             if (enemy == null || enemy.IsDead)
                 continue;
 
-            GridUnit playerTarget = GetFirstLivingPlayer();
-
-            if (playerTarget == null)
-            {
-                Debug.LogWarning("No living player targets found. Returning to player turn.");
-                StartPlayerTurn();
-                yield break;
-            }
-
             EnemyController controller = enemy.GetComponent<EnemyController>();
-
             if (controller == null)
             {
                 Debug.LogWarning($"{enemy.name} has no EnemyController. Skipping.");
                 continue;
             }
 
-            bool acted = controller.TryAct(playerTarget);
-            Debug.Log($"{enemy.name} TryAct result: {acted}");
+            GridUnit playerTarget = GetBestTargetForEnemy(enemy);
+            bool acted = controller.TryTakeTurn(playerTarget);
+            Debug.Log($"{enemy.name} state {controller.CurrentState} TryTakeTurn result: {acted}");
+
+            if (!acted && !controller.HasActiveTargetKnowledge())
+            {
+                Debug.Log($"{enemy.name} has no visible or remembered target. Skipping.");
+                yield return new WaitForSeconds(GetEnemyDelay(0.2f));
+                continue;
+            }
 
             if (!acted)
             {
+                controller.RefreshAwarenessFromCurrentFacing();
+                EnemyVisionDetector.RefreshAllHiddenStates();
                 yield return new WaitForSeconds(GetEnemyDelay(0.2f));
+                continue;
+            }
+
+            if (controller.IsInvestigationScanRunning)
+            {
+                while (controller.IsInvestigationScanRunning)
+                    yield return null;
+            }
+
+            if (controller.LastActionWasMovement)
+            {
+                bool finished = false;
+
+                void OnFinished(GridUnit u)
+                {
+                    Debug.Log($"{enemy.name} movement finished event received.");
+                    finished = true;
+                }
+
+                enemy.OnMovementFinished += OnFinished;
+
+                float movementWaitStartTime = Time.time;
+                if (!enemy.IsMoving)
+                    finished = true;
+
+                while (!finished && enemy != null && enemy.IsMoving)
+                {
+                    if (Time.time - movementWaitStartTime > enemyActionSafetyTimeout)
+                    {
+                        Debug.LogWarning($"{enemy.name} movement wait timed out. Continuing enemy turn to avoid a soft lock.");
+                        break;
+                    }
+
+                    yield return null;
+                }
+
+                enemy.OnMovementFinished -= OnFinished;
+
+                if (controller.IsInvestigationScanRunning)
+                {
+                    while (controller.IsInvestigationScanRunning)
+                        yield return null;
+                }
+
+                if (controller.IsActionAnimationRunning)
+                {
+                    float actionWaitStartTime = Time.time;
+                    while (controller.IsActionAnimationRunning)
+                    {
+                        if (Time.time - actionWaitStartTime > enemyActionSafetyTimeout)
+                        {
+                            Debug.LogWarning($"{enemy.name} action wait timed out. Clearing wait to avoid a soft lock.");
+                            controller.ForceClearActionAnimationWait();
+                            break;
+                        }
+
+                        yield return null;
+                    }
+                }
+
+                controller.RefreshAwarenessFromCurrentFacing();
+                EnemyVisionDetector.RefreshAllHiddenStates();
+                yield return new WaitForSeconds(GetEnemyDelay(0.25f));
                 continue;
             }
 
             if (!controller.LastActionWasMovement)
             {
+                if (controller.IsActionAnimationRunning)
+                {
+                    float actionWaitStartTime = Time.time;
+                    while (controller.IsActionAnimationRunning)
+                    {
+                        if (Time.time - actionWaitStartTime > enemyActionSafetyTimeout)
+                        {
+                            Debug.LogWarning($"{enemy.name} action wait timed out. Clearing wait to avoid a soft lock.");
+                            controller.ForceClearActionAnimationWait();
+                            break;
+                        }
+
+                        yield return null;
+                    }
+                }
+
+                controller.RefreshAwarenessFromCurrentFacing();
+                EnemyVisionDetector.RefreshAllHiddenStates();
                 yield return new WaitForSeconds(GetEnemyDelay(0.4f));
                 continue;
             }
-
-            bool finished = false;
-
-            void OnFinished(GridUnit u)
-            {
-                Debug.Log($"{enemy.name} movement finished event received.");
-                finished = true;
-            }
-
-            enemy.OnMovementFinished += OnFinished;
-
-            while (!finished)
-                yield return null;
-
-            enemy.OnMovementFinished -= OnFinished;
-
-            yield return new WaitForSeconds(GetEnemyDelay(0.25f));
         }
 
+        EnemyVisionDetector.RefreshAllHiddenStates();
         StartPlayerTurn();
     }
     
-    private GridUnit GetFirstLivingPlayer()
+    private GridUnit GetBestTargetForEnemy(GridUnit enemyUnit)
     {
+        if (enemyUnit == null)
+            return null;
+
+        EnemyVisionDetector detector = enemyUnit.GetComponent<EnemyVisionDetector>();
+        EnemyController controller = enemyUnit.GetComponent<EnemyController>();
         GridUnit[] allUnits = FindObjectsByType<GridUnit>(FindObjectsSortMode.None);
+        GridUnit closestVisibleTarget = null;
+        int closestVisibleDistance = int.MaxValue;
 
         foreach (GridUnit unit in allUnits)
         {
-            if (unit != null && unit.Team == UnitTeam.Player && !unit.IsDead)
-                return unit;
+            if (unit == null || unit.Team != UnitTeam.Player || unit.IsDead || unit.CurrentTile == null)
+                continue;
+
+            HiddenStateComponent hiddenState = unit.GetComponent<HiddenStateComponent>();
+            bool isInsideBarrel = hiddenState != null && hiddenState.CurrentBarrel != null;
+
+            bool isVisible = false;
+            if (detector != null)
+            {
+                if (isInsideBarrel)
+                {
+                    bool barrelVisible = detector.CanSeeBarrel(hiddenState.CurrentBarrel);
+                    bool barrelCarrierKnown =
+                        hiddenState != null &&
+                        (!hiddenState.IsHidden || hiddenState.BarrelKnownToEnemies);
+
+                    if (barrelVisible && barrelCarrierKnown && controller != null)
+                        controller.RememberTarget(unit);
+
+                    isVisible = false;
+                }
+                else
+                {
+                    isVisible = detector.CanSeeUnit(unit);
+                }
+            }
+
+            int distance =
+                Mathf.Abs(enemyUnit.CurrentTile.X - unit.CurrentTile.X) +
+                Mathf.Abs(enemyUnit.CurrentTile.Y - unit.CurrentTile.Y);
+
+            if (isVisible && distance < closestVisibleDistance)
+            {
+                closestVisibleDistance = distance;
+                closestVisibleTarget = unit;
+                if (controller != null)
+                    controller.RememberTarget(unit);
+                continue;
+            }
         }
 
-        return null;
+        return closestVisibleTarget;
     }
 
     private GridUnit[] GetLivingEnemies()

@@ -304,12 +304,7 @@ public class GridTile : MonoBehaviour
         if (data == null)
             return movementCost;
 
-        int cost = data.MovementCost;
-
-        if (!isFinalDestination)
-            cost += data.MovementPenaltyOnEntry;
-
-        return cost;
+        return data.MovementCost + data.MovementPenaltyOnEntry;
     }
     
     private void RefreshDecoration()

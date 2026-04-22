@@ -4,8 +4,15 @@ using System.Collections.Generic;
 public class AStarPathFinder : MonoBehaviour
 {
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
 
-    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit)
+    private void Awake()
+    {
+        if (interactablePlacementService == null)
+            interactablePlacementService = FindFirstObjectByType<InteractablePlacementService>();
+    }
+
+    public List<GridTile> FindPath(GridTile startTile, GridTile targetTile, GridUnit unit, bool allowInteractableTarget = false)
     {
         if (startTile == null || targetTile == null || unit == null)
             return null;
@@ -44,7 +51,10 @@ public class AStarPathFinder : MonoBehaviour
                 if (!neighborTile.isWalkable)
                     continue;
 
-                if (neighborTile.isOccupied && neighborTile != targetTile)
+                if (IsTileOccupiedByOtherUnit(neighborTile, unit))
+                    continue;
+
+                if (ShouldTreatTileAsBlockedByInteractable(neighborTile, targetTile, unit, allowInteractableTarget))
                     continue;
 
                 if (!CanTraverseElevation(currentNode.Tile, neighborTile, unit))
@@ -73,6 +83,41 @@ public class AStarPathFinder : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool IsTileOccupiedByOtherUnit(GridTile tile, GridUnit unit)
+    {
+        if (tile == null || unit == null || !tile.isOccupied)
+            return false;
+
+        if (tile.OccupyingUnit == null)
+            return true;
+
+        return tile.OccupyingUnit != unit.gameObject;
+    }
+
+    private bool ShouldTreatTileAsBlockedByInteractable(GridTile tile, GridTile targetTile, GridUnit unit, bool allowInteractableTarget)
+    {
+        if (tile == null || unit == null || interactablePlacementService == null)
+            return false;
+
+        PlacedInteractable placedInteractable = interactablePlacementService.GetPlacedInteractableAtTile(tile);
+        if (placedInteractable == null)
+            return false;
+
+        if (allowInteractableTarget && tile == targetTile)
+            return false;
+
+        BarrelInteractable barrel = placedInteractable.GetComponent<BarrelInteractable>();
+        if (barrel == null)
+            return false;
+
+        bool playerCanEnterThisBarrel =
+            unit.Team == UnitTeam.Player &&
+            tile == targetTile &&
+            barrel.CanUnitHideHere(unit);
+
+        return !playerCanEnterThisBarrel;
     }
 
     private int GetTileElevation(GridTile tile)

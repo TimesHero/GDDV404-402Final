@@ -6,13 +6,20 @@ public class BuilderObstaclePreview : MonoBehaviour
     [SerializeField] private BuilderStateController builderStateController;
     [SerializeField] private BuilderInputController builderInputController;
     [SerializeField] private ObstacleManager obstacleManager;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+    [SerializeField] private UnitPlacementService unitPlacementService;
 
     [Header("Preview Visual")]
     [SerializeField] private Material previewMaterial;
     [SerializeField] private Color previewColor = new Color(0.3f, 0.7f, 1f, 0.35f);
 
+    public Material PreviewMaterial => previewMaterial;
+    public Color PreviewColor => previewColor;
+
     private GameObject currentPreviewInstance;
-    private ObstacleData currentPreviewData;
+    private Object currentPreviewSource;
+    private BuilderToolMode currentPreviewMode;
+    private bool currentPreviewUsesCardinalFacing;
 
     private void Update()
     {
@@ -21,31 +28,62 @@ public class BuilderObstaclePreview : MonoBehaviour
 
     private void UpdatePreview()
     {
-        if (builderStateController == null || builderInputController == null || obstacleManager == null)
+        if (builderStateController == null || builderInputController == null)
         {
             HidePreview();
             return;
         }
 
-        if (builderStateController.CurrentToolMode != BuilderToolMode.ObstaclePaint)
+        GridTile hoveredTile = builderInputController.CurrentHoveredTile;
+        if (hoveredTile == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        if (builderInputController.IsPickingObjectiveTile || builderInputController.IsPickingEnemyPatrolEndTile)
+        {
+            HidePreview();
+            return;
+        }
+
+        switch (builderStateController.CurrentToolMode)
+        {
+            case BuilderToolMode.ObstaclePaint:
+                UpdateObstaclePreview(hoveredTile);
+                break;
+
+            case BuilderToolMode.InteractablePaint:
+                UpdateInteractablePreview(hoveredTile);
+                break;
+
+            case BuilderToolMode.UnitPaint:
+                UpdateUnitPreview(hoveredTile);
+                break;
+
+            default:
+                HidePreview();
+                break;
+        }
+    }
+
+    private void UpdateObstaclePreview(GridTile hoveredTile)
+    {
+        if (obstacleManager == null)
         {
             HidePreview();
             return;
         }
 
         ObstacleData selectedObstacle = builderStateController.SelectedObstacleData;
-        GridTile hoveredTile = builderInputController.CurrentHoveredTile;
-
-        if (selectedObstacle == null || hoveredTile == null || selectedObstacle.ObstaclePrefab == null)
+        if (selectedObstacle == null || selectedObstacle.ObstaclePrefab == null)
         {
             HidePreview();
             return;
         }
 
-        if (currentPreviewInstance == null || currentPreviewData != selectedObstacle)
-        {
-            RebuildPreview(selectedObstacle);
-        }
+        if (NeedsRebuild(selectedObstacle, BuilderToolMode.ObstaclePaint))
+            RebuildPreview(selectedObstacle.ObstaclePrefab, selectedObstacle, BuilderToolMode.ObstaclePaint);
 
         if (currentPreviewInstance == null)
             return;
@@ -62,21 +100,110 @@ public class BuilderObstaclePreview : MonoBehaviour
         currentPreviewInstance.transform.rotation = Quaternion.Euler(
             selectedObstacle.GetVisualRotationEulerForRotation(rotationY)
         );
-
         currentPreviewInstance.transform.localScale = selectedObstacle.GetVisualScaleForRotation(rotationY);
         currentPreviewInstance.SetActive(true);
     }
 
-    private void RebuildPreview(ObstacleData selectedObstacle)
+    private void UpdateInteractablePreview(GridTile hoveredTile)
+    {
+        if (interactablePlacementService == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        InteractableData selectedInteractable = builderStateController.SelectedInteractableData;
+        if (selectedInteractable == null || selectedInteractable.prefab == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        if (NeedsRebuild(selectedInteractable, BuilderToolMode.InteractablePaint))
+            RebuildPreview(selectedInteractable.prefab, selectedInteractable, BuilderToolMode.InteractablePaint);
+
+        if (currentPreviewInstance == null)
+            return;
+
+        int rotationY = builderStateController.SelectedInteractableRotationY;
+
+        currentPreviewInstance.transform.position =
+            interactablePlacementService.GetPreviewWorldPosition(selectedInteractable, hoveredTile, rotationY);
+
+        currentPreviewInstance.transform.rotation = Quaternion.Euler(
+            selectedInteractable.GetVisualRotationEulerForRotation(rotationY)
+        );
+        currentPreviewInstance.transform.localScale =
+            selectedInteractable.GetVisualScaleForRotation(rotationY);
+
+        currentPreviewInstance.SetActive(true);
+    }
+
+    private void UpdateUnitPreview(GridTile hoveredTile)
+    {
+        if (unitPlacementService == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        UnitData selectedUnit = builderStateController.SelectedUnitData;
+        if (selectedUnit == null || selectedUnit.unitPrefab == null)
+        {
+            HidePreview();
+            return;
+        }
+
+        bool useCardinalFacing = builderStateController.SelectedUnitUsesCardinalFacing;
+
+        if (NeedsRebuild(selectedUnit, BuilderToolMode.UnitPaint) || currentPreviewUsesCardinalFacing != useCardinalFacing)
+            RebuildPreview(selectedUnit.unitPrefab, selectedUnit, BuilderToolMode.UnitPaint);
+
+        if (currentPreviewInstance == null)
+            return;
+
+        currentPreviewUsesCardinalFacing = useCardinalFacing;
+
+        int rotationY = builderStateController.SelectedUnitRotationY;
+
+        currentPreviewInstance.transform.position =
+            unitPlacementService.GetPreviewWorldPosition(selectedUnit, hoveredTile, rotationY);
+
+        GridUnit previewUnit = currentPreviewInstance.GetComponent<GridUnit>();
+        if (previewUnit != null)
+        {
+            unitPlacementService.ApplyUnitRotation(previewUnit, selectedUnit, rotationY, useCardinalFacing);
+        }
+        else
+        {
+            currentPreviewInstance.transform.rotation = Quaternion.Euler(
+                selectedUnit.GetVisualRotationEulerForRotation(rotationY, useCardinalFacing)
+            );
+        }
+
+        currentPreviewInstance.transform.localScale =
+            selectedUnit.GetVisualScaleForRotation(rotationY);
+
+        currentPreviewInstance.SetActive(true);
+    }
+
+    private bool NeedsRebuild(Object source, BuilderToolMode mode)
+    {
+        return currentPreviewInstance == null || currentPreviewSource != source || currentPreviewMode != mode;
+    }
+
+    private void RebuildPreview(GameObject prefab, Object source, BuilderToolMode mode)
     {
         HidePreview();
 
-        if (selectedObstacle == null || selectedObstacle.ObstaclePrefab == null)
+        if (prefab == null)
             return;
 
-        currentPreviewInstance = Instantiate(selectedObstacle.ObstaclePrefab);
-        currentPreviewInstance.name = $"{selectedObstacle.name}_Preview";
-        currentPreviewData = selectedObstacle;
+        currentPreviewInstance = Instantiate(prefab);
+        currentPreviewInstance.name = $"{prefab.name}_Preview";
+        currentPreviewSource = source;
+        currentPreviewMode = mode;
+        currentPreviewUsesCardinalFacing = false;
 
         ApplyPreviewVisuals(currentPreviewInstance);
     }
@@ -121,6 +248,7 @@ public class BuilderObstaclePreview : MonoBehaviour
             Destroy(currentPreviewInstance);
 
         currentPreviewInstance = null;
-        currentPreviewData = null;
+        currentPreviewSource = null;
+        currentPreviewUsesCardinalFacing = false;
     }
 }

@@ -12,23 +12,62 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a2f8c2a586ded1f46a500b3d8c3a7b5f, type: 3}
   m_Name: test
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
+  unitId: test_sus
   unitTeam: 0
   unitName: test
-  description: 
-  role: 0
-  defaultTeam: 0
   maxHP: 50
   attackPower: 3
   defense: 0
-  movementPoints: 5
+  movementPoints: 20
   attackRange: 1
+  canBackstab: 1
+  backstabDamageMultiplier: 2
+  backstabBonusDamage: 1
   maxClimbHeight: 1
-  attackType: 0
-  elementType: 0
+  canHideInBarrel: 1
+  hiddenMovementPreset: 2
+  customHiddenMovementDivisor: 2
+  movementSpeedWhileHidden: 0
+  canPush: 1
+  pushDistance: 2
+  canBePushed: 1
+  usePushWeightSystem: 0
+  pushWeight: 1
+  pushDistancePerWeightDifference: 0
   visionRange: 5
   visionAngle: 90
+  footprintSize: {x: 1, y: 1}
+  useRotationPresets: 0
+  rotation0Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation90Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation180Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  rotation270Preset:
+    RotationY: 0
+    VisualOffset: {x: 0, y: 0, z: 0}
+    VisualRotationEuler: {x: 0, y: 0, z: 0}
+    VisualScale: {x: 1, y: 1, z: 1}
+  localOffset: {x: 0, y: 0, z: 0}
+  localRotationEuler: {x: 0, y: 0, z: 0}
+  localScale: {x: 1, y: 1, z: 1}
+  unitPrefab: {fileID: 7081758415280801425, guid: 4860ead2bd2942e469dc1b6a0d2281b6, type: 3}
+  description: 
+  role: 0
+  defaultTeam: 0
+  attackType: 0
+  elementType: 0
   aiType: 0
   abilities: []
   ultimateAbility: {fileID: 0}
-  unitPrefab: {fileID: 7081758415280801425, guid: 4860ead2bd2942e469dc1b6a0d2281b6, type: 3}
   portrait: {fileID: 0}

@@ -4,7 +4,15 @@ using UnityEngine;
 
 public class BuilderSaveLoadManager : MonoBehaviour
 {
-    [SerializeField] private BuilderSaveLoadManager builderSaveLoadManager;
+    [SerializeField] private UnitPlacementService unitPlacementService;
+    
+    [SerializeField] private InteractableLibrary interactableLibrary;
+    [SerializeField] private InteractablePlacementService interactablePlacementService;
+    
+    [SerializeField] private InteractableRegistry interactableRegistry;
+    [SerializeField] private LevelObjectiveRegistry objectiveRegistry;
+    [SerializeField] private BuilderObjectiveUIController builderObjectiveUIController;
+    [SerializeField] private BuilderUnitRegistry builderUnitRegistry;
     
     [Header("References")]
     [SerializeField] private GridManager gridManager;
@@ -141,47 +149,87 @@ public class BuilderSaveLoadManager : MonoBehaviour
             layoutData.obstacles.Add(obstacleData);
         }
 
-        GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in playerUnits)
-        {
-            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
-                continue;
-
-            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
-
-            UnitLayoutData unitData = new UnitLayoutData
-            {
-                unitId = unit.UnitData.UnitId,
-                x = unit.CurrentTile.X,
-                y = unit.CurrentTile.Y,
-                rotationY = rotationY,
-                team = "Player"
-            };
-
-            layoutData.units.Add(unitData);
-        }
-
-        GridUnit[] enemyUnits = enemyUnitParent.GetComponentsInChildren<GridUnit>();
-        foreach (GridUnit unit in enemyUnits)
-        {
-            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
-                continue;
-
-            int rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y));
-
-            UnitLayoutData unitData = new UnitLayoutData
-            {
-                unitId = unit.UnitData.UnitId,
-                x = unit.CurrentTile.X,
-                y = unit.CurrentTile.Y,
-                rotationY = rotationY,
-                team = "Enemy"
-            };
-
-            layoutData.units.Add(unitData);
-        }
+        AddPlacedUnitsToLayout(layoutData);
+        layoutData.interactables = BuildInteractableLayoutData();
+        layoutData.objectives = BuildObjectiveLayoutData();
+        layoutData.loseWhenSeen = objectiveRegistry != null && objectiveRegistry.LoseWhenSeen;
 
         return layoutData;
+    }
+
+    private void AddPlacedUnitsToLayout(LevelLayoutData layoutData)
+    {
+        if (layoutData == null)
+            return;
+
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        if (builderUnitRegistry != null)
+        {
+            IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+            foreach (PlacedBuilderUnit placedUnit in placedUnits)
+            {
+                if (placedUnit == null || placedUnit.Unit == null || placedUnit.UnitData == null)
+                    continue;
+
+                GridTile tile = placedUnit.Unit.CurrentTile;
+                if (tile == null)
+                    continue;
+
+                UnitLayoutData unitData = new UnitLayoutData
+                {
+                    unitId = placedUnit.UnitData.UnitId,
+                    x = tile.X,
+                    y = tile.Y,
+                    rotationY = NormalizeRotationY(placedUnit.RotationY),
+                    useCardinalFacing = placedUnit.UseCardinalFacing,
+                    team = placedUnit.PaintTeam == BuilderUnitPaintTeam.Enemy ? "Enemy" : "Player",
+                    enemyBehavior = placedUnit.EnemyBehavior,
+                    hasPatrolRoute = placedUnit.HasPatrolRoute,
+                    patrolStartX = placedUnit.PatrolStart.x,
+                    patrolStartY = placedUnit.PatrolStart.y,
+                    patrolEndX = placedUnit.PatrolEnd.x,
+                    patrolEndY = placedUnit.PatrolEnd.y
+                };
+
+                layoutData.units.Add(unitData);
+            }
+
+            return;
+        }
+
+        AddUnitsFromParentToLayout(layoutData, playerUnitParent, "Player");
+        AddUnitsFromParentToLayout(layoutData, enemyUnitParent, "Enemy");
+    }
+
+    private void AddUnitsFromParentToLayout(LevelLayoutData layoutData, Transform parent, string team)
+    {
+        if (layoutData == null || parent == null)
+            return;
+
+        GridUnit[] units = parent.GetComponentsInChildren<GridUnit>();
+        foreach (GridUnit unit in units)
+        {
+            if (unit == null || unit.CurrentTile == null || unit.UnitData == null)
+                continue;
+
+            UnitLayoutData unitData = new UnitLayoutData
+            {
+                unitId = unit.UnitData.UnitId,
+                x = unit.CurrentTile.X,
+                y = unit.CurrentTile.Y,
+                rotationY = NormalizeRotationY(Mathf.RoundToInt(unit.transform.eulerAngles.y)),
+                useCardinalFacing = false,
+                team = team,
+                enemyBehavior = EnemyAIBehavior.Static,
+                hasPatrolRoute = false,
+                patrolStartX = unit.CurrentTile.X,
+                patrolStartY = unit.CurrentTile.Y
+            };
+
+            layoutData.units.Add(unitData);
+        }
     }
 
     private void RebuildLevel(LevelLayoutData layoutData)
@@ -270,6 +318,9 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
             Debug.Log($"LOAD obstacle '{obstacleData.obstacleName}' at ({obstacleData.originX}, {obstacleData.originY}), rot {obstacleData.rotationY} -> placed: {placed}");
         }
+        
+        LoadInteractablesFromLayout(layoutData);
+        LoadObjectivesFromLayout(layoutData);
 
         UnitData[] playerUnitAssets = Resources.LoadAll<UnitData>("UnitData/Player");
         UnitData[] enemyUnitAssets = Resources.LoadAll<UnitData>("UnitData/Enemy");
@@ -297,30 +348,50 @@ public class BuilderSaveLoadManager : MonoBehaviour
             }
 
             GridTile tile = gridManager.GetTileAt(new Vector2Int(unitData.x, unitData.y));
-            if (tile == null || tile.isOccupied || !tile.isWalkable)
+            if (tile == null)
                 continue;
 
-            Transform targetParent = unitData.team == "Enemy" ? enemyUnitParent : playerUnitParent;
+            if (unitPlacementService == null)
+            {
+                Debug.LogError("BuilderSaveLoadManager: UnitPlacementService is missing.");
+                return;
+            }
 
-            Quaternion unitRotation = Quaternion.Euler(0f, unitData.rotationY, 0f);
+            BuilderUnitPaintTeam team = unitData.team == "Enemy"
+                ? BuilderUnitPaintTeam.Enemy
+                : BuilderUnitPaintTeam.Player;
 
-            GameObject spawnedObject = Instantiate(
-                unitAsset.unitPrefab,
-                Vector3.zero,
-                unitRotation,
-                targetParent
+            bool placed = unitPlacementService.TryPlaceUnit(
+                unitAsset,
+                tile,
+                unitData.rotationY,
+                team,
+                unitData.useCardinalFacing,
+                out PlacedBuilderUnit placedUnit
             );
 
-            GridUnit gridUnit = spawnedObject.GetComponent<GridUnit>();
-
-            if (gridUnit == null)
+            if (!placed)
             {
-                Destroy(spawnedObject);
+                Debug.LogWarning($"Failed to load unit '{unitData.unitId}' at ({unitData.x}, {unitData.y})");
                 continue;
             }
 
-            gridUnit.InitializeFromData(unitAsset);
-            gridUnit.PlaceOnTile(tile);
+            if (placedUnit != null)
+            {
+                placedUnit.EnemyBehavior = unitData.team == "Enemy"
+                    ? unitData.enemyBehavior
+                    : EnemyAIBehavior.Static;
+                placedUnit.HasPatrolRoute = unitData.team == "Enemy" && unitData.hasPatrolRoute;
+                placedUnit.PatrolStart = new Vector2Int(unitData.patrolStartX, unitData.patrolStartY);
+                placedUnit.PatrolEnd = new Vector2Int(unitData.patrolEndX, unitData.patrolEndY);
+
+                if (placedUnit.HasPatrolRoute && unitPlacementService != null)
+                {
+                    GridTile patrolEndTile = gridManager.GetTileAt(placedUnit.PatrolEnd);
+                    if (patrolEndTile != null)
+                        unitPlacementService.CreatePatrolEndMarker(placedUnit, patrolEndTile);
+                }
+            }
         }
     }
     
@@ -331,6 +402,8 @@ public class BuilderSaveLoadManager : MonoBehaviour
 
     private void ClearCurrentBuilderState()
     {
+        DestroyBuilderPatrolEndMarkers();
+
         GridUnit[] playerUnits = playerUnitParent.GetComponentsInChildren<GridUnit>();
         foreach (GridUnit unit in playerUnits)
         {
@@ -356,6 +429,11 @@ public class BuilderSaveLoadManager : MonoBehaviour
         }
 
         obstacleManager.ClearAllObstacles();
+        interactablePlacementService?.ClearAllInteractables();
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        builderUnitRegistry?.ClearAll();
 
         GridTile[,] grid = gridManager.Grid;
         if (grid == null)
@@ -377,6 +455,19 @@ public class BuilderSaveLoadManager : MonoBehaviour
                     tileElevation.SetElevation(0);
             }
         }
+    }
+
+    private void DestroyBuilderPatrolEndMarkers()
+    {
+        if (builderUnitRegistry == null)
+            builderUnitRegistry = FindFirstObjectByType<BuilderUnitRegistry>();
+
+        if (builderUnitRegistry == null || unitPlacementService == null)
+            return;
+
+        IReadOnlyList<PlacedBuilderUnit> placedUnits = builderUnitRegistry.GetPlacedUnits();
+        foreach (PlacedBuilderUnit placedUnit in placedUnits)
+            unitPlacementService.DestroyPatrolEndMarker(placedUnit);
     }
 
     private int NormalizeRotationY(int rotationY)
@@ -451,5 +542,171 @@ public class BuilderSaveLoadManager : MonoBehaviour
         LoadLevel();
     }
     
+    private List<InteractableLayoutData> BuildInteractableLayoutData()
+    {
+        List<InteractableLayoutData> result = new List<InteractableLayoutData>();
+
+        if (interactableRegistry == null)
+            return result;
+
+        List<PlacedInteractable> placedInteractables = interactableRegistry.GetAllPlacedInteractables();
+        if (placedInteractables == null)
+            return result;
+
+        foreach (PlacedInteractable placed in placedInteractables)
+        {
+            if (placed == null || placed.Data == null)
+                continue;
+
+            InteractableLayoutData data = new InteractableLayoutData
+            {
+                interactableId = placed.Data.interactableId,
+                x = placed.Origin.x,
+                y = placed.Origin.y,
+                rotationY = placed.RotationY
+            };
+
+            result.Add(data);
+        }
+
+        return result;
+    }
+
+    private List<ObjectiveLayoutData> BuildObjectiveLayoutData()
+    {
+        List<ObjectiveLayoutData> result = new List<ObjectiveLayoutData>();
+
+        if (objectiveRegistry == null)
+            return result;
+
+        List<LevelObjectiveData> objectives = objectiveRegistry.GetObjectives();
+        if (objectives == null)
+            return result;
+
+        foreach (LevelObjectiveData objective in objectives)
+        {
+            if (objective == null)
+                continue;
+
+            ObjectiveLayoutData data = new ObjectiveLayoutData
+            {
+                winConditionType = objective.winConditionType,
+                surviveTurnCount = objective.surviveTurnCount,
+                targetInteractableId = objective.targetInteractableId
+            };
+
+            if (objective.targetGridPositions != null && objective.targetGridPositions.Count > 0)
+            {
+                foreach (Vector2Int targetPos in objective.targetGridPositions)
+                {
+                    data.targetTiles.Add(new ObjectiveTargetTileData
+                    {
+                        x = targetPos.x,
+                        y = targetPos.y
+                    });
+                }
+
+                // Legacy fallback fields
+                data.targetX = objective.targetGridPositions[0].x;
+                data.targetY = objective.targetGridPositions[0].y;
+            }
+
+            result.Add(data);
+        }
+
+        return result;
+    }
+
+    private void LoadObjectivesFromLayout(LevelLayoutData layoutData)
+    {
+        if (objectiveRegistry == null || layoutData == null)
+            return;
+
+        objectiveRegistry.SetLoseWhenSeen(layoutData.loseWhenSeen);
+
+        List<LevelObjectiveData> objectives = new List<LevelObjectiveData>();
+
+        if (layoutData.objectives != null)
+        {
+            foreach (ObjectiveLayoutData objectiveLayout in layoutData.objectives)
+            {
+                if (objectiveLayout == null)
+                    continue;
+
+                LevelObjectiveData objective = new LevelObjectiveData
+                {
+                    winConditionType = objectiveLayout.winConditionType,
+                    surviveTurnCount = objectiveLayout.surviveTurnCount,
+                    targetInteractableId = objectiveLayout.targetInteractableId
+                };
+
+                if (objectiveLayout.targetTiles != null && objectiveLayout.targetTiles.Count > 0)
+                {
+                    foreach (ObjectiveTargetTileData targetTile in objectiveLayout.targetTiles)
+                    {
+                        if (targetTile == null)
+                            continue;
+
+                        objective.targetGridPositions.Add(new Vector2Int(targetTile.x, targetTile.y));
+                    }
+                }
+                else
+                {
+                    objective.targetGridPositions.Add(new Vector2Int(objectiveLayout.targetX, objectiveLayout.targetY));
+                }
+
+                objectives.Add(objective);
+            }
+        }
+
+        objectiveRegistry.SetObjectives(objectives);
+
+        if (builderObjectiveUIController == null)
+            builderObjectiveUIController = FindFirstObjectByType<BuilderObjectiveUIController>();
+
+        if (builderObjectiveUIController != null)
+            builderObjectiveUIController.RefreshFromRegistry();
+    }
     
+    private void LoadInteractablesFromLayout(LevelLayoutData layoutData)
+    {
+        if (layoutData == null || layoutData.interactables == null)
+            return;
+
+        if (interactableLibrary == null || interactablePlacementService == null)
+        {
+            Debug.LogWarning("InteractableLibrary or InteractablePlacementService is missing.");
+            return;
+        }
+
+        interactablePlacementService.ClearAllInteractables();
+
+        foreach (InteractableLayoutData interactableData in layoutData.interactables)
+        {
+            if (interactableData == null)
+                continue;
+
+            InteractableData interactableAsset = interactableLibrary.GetById(interactableData.interactableId);
+            if (interactableAsset == null)
+            {
+                Debug.LogWarning($"Could not find interactable asset: {interactableData.interactableId}");
+                continue;
+            }
+
+            GridTile originTile = gridManager.GetTileAt(new Vector2Int(interactableData.x, interactableData.y));
+            if (originTile == null)
+            {
+                Debug.LogWarning($"Could not find interactable tile at: ({interactableData.x}, {interactableData.y})");
+                continue;
+            }
+
+            bool placed = interactablePlacementService.TryPlaceInteractable(
+                interactableAsset,
+                originTile,
+                interactableData.rotationY
+            );
+
+            Debug.Log($"LOAD interactable '{interactableData.interactableId}' at ({interactableData.x}, {interactableData.y}), rot {interactableData.rotationY} -> placed: {placed}");
+        }
+    }
 }
