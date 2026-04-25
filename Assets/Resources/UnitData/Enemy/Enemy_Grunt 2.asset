@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2f8c2a586ded1f46a500b3d8c3a7b5f, type: 3}
-  m_Name: Enemy_Grunt
+  m_Name: Enemy_Grunt 2
   m_EditorClassIdentifier: Assembly-CSharp::UnitData
   unitId: Enemy_test2
   unitTeam: 0
@@ -26,19 +26,19 @@ MonoBehaviour:
   backstabDamageMultiplier: 2
   backstabBonusDamage: 0
   maxClimbHeight: 1
-  canHideInBarrel: 1
+  canHideInBarrel: 0
   hiddenMovementPreset: 2
   customHiddenMovementDivisor: 2
   movementSpeedWhileHidden: 0
   canPush: 1
-  pushDistance: 1
+  pushDistance: 2
   canBePushed: 1
   usePushWeightSystem: 0
   pushWeight: 1
   pushDistancePerWeightDifference: 0
   visionRange: 5
   visionAngle: 90
-  canNoticeBarrelLayoutChanges: 1
+  canNoticeBarrelLayoutChanges: 0
   footprintSize: {x: 1, y: 1}
   useRotationPresets: 0
   rotation0Preset:

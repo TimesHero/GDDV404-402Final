@@ -394,14 +394,28 @@
             "x": 7,
             "y": 6,
             "rotationY": 270,
-            "team": "Player"
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 0,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         },
         {
             "unitId": "Enemy_test2",
             "x": 2,
             "y": 6,
             "rotationY": 270,
-            "team": "Enemy"
+            "useCardinalFacing": false,
+            "team": "Enemy",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 0,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         }
     ],
     "interactables": [],
@@ -412,7 +426,13 @@
             "targetX": 0,
             "targetY": 0,
             "targetInteractableId": "",
-            "targetTiles": []
+            "targetTiles": [
+                {
+                    "x": 0,
+                    "y": 0
+                }
+            ]
         }
-    ]
+    ],
+    "loseWhenSeen": false
 }

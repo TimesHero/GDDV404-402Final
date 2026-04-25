@@ -221,7 +221,7 @@
         {
             "x": 4,
             "y": 4,
-            "terrainType": "Hazard",
+            "terrainType": "Ground",
             "elevation": 0
         },
         {
@@ -390,29 +390,71 @@
     "obstacles": [],
     "units": [
         {
-            "unitId": "test_sus",
-            "x": 4,
-            "y": 3,
+            "unitId": "Player_sus",
+            "x": 0,
+            "y": 2,
             "rotationY": 0,
-            "team": "Player"
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 0,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         },
         {
-            "unitId": "Enemy_test2",
+            "unitId": "Player_sus",
             "x": 0,
-            "y": 4,
-            "rotationY": 270,
-            "team": "Enemy"
+            "y": 0,
+            "rotationY": 0,
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 0,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Player_sus",
+            "x": 2,
+            "y": 0,
+            "rotationY": 0,
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 0,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         }
     ],
     "interactables": [],
     "objectives": [
         {
-            "winConditionType": 1,
+            "winConditionType": 3,
             "surviveTurnCount": 0,
-            "targetX": 0,
-            "targetY": 0,
+            "targetX": 7,
+            "targetY": 7,
             "targetInteractableId": "",
-            "targetTiles": []
+            "targetTiles": [
+                {
+                    "x": 7,
+                    "y": 7
+                },
+                {
+                    "x": 7,
+                    "y": 5
+                },
+                {
+                    "x": 4,
+                    "y": 4
+                }
+            ]
         }
-    ]
+    ],
+    "loseWhenSeen": false
 }
