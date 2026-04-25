@@ -17,7 +17,7 @@ MonoBehaviour:
   damageOnEnter: 0
   movementPenaltyOnStop: 0
   damageOnStop: 0
-  movementPenaltyOnEntry: 1
+  movementPenaltyOnEntry: 2
   isWalkable: 1
   tileColor: {r: 0, g: 1, b: 0.0075757504, a: 1}
   tileDecorationPrefab: {fileID: 0}

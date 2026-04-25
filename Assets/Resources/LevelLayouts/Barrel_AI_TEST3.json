@@ -390,42 +390,97 @@
     "obstacles": [],
     "units": [
         {
-            "unitId": "Player_sus",
-            "x": 0,
-            "y": 0,
-            "rotationY": 0,
-            "team": "Player"
+            "unitId": "Enemy_test2",
+            "x": 3,
+            "y": 5,
+            "rotationY": 90,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 1,
+            "hasPatrolRoute": true,
+            "patrolStartX": 3,
+            "patrolStartY": 5,
+            "patrolEndX": 4,
+            "patrolEndY": 0
         },
         {
             "unitId": "Enemy_test2",
-            "x": 5,
+            "x": 2,
+            "y": 3,
+            "rotationY": 90,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 2,
+            "hasPatrolRoute": false,
+            "patrolStartX": 2,
+            "patrolStartY": 3,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Enemy_test2",
+            "x": 1,
             "y": 5,
+            "rotationY": 270,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 2,
+            "hasPatrolRoute": false,
+            "patrolStartX": 1,
+            "patrolStartY": 5,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Player_sus",
+            "x": 1,
+            "y": 0,
             "rotationY": 0,
-            "team": "Enemy"
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 1,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Enemy_test2",
+            "x": 7,
+            "y": 6,
+            "rotationY": 0,
+            "useCardinalFacing": false,
+            "team": "Enemy",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 7,
+            "patrolStartY": 6,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         }
     ],
-    "interactables": [],
+    "interactables": [
+        {
+            "interactableId": "barrel_01",
+            "x": 2,
+            "y": 0,
+            "rotationY": 0
+        }
+    ],
     "objectives": [
         {
-            "winConditionType": 1,
+            "winConditionType": 4,
             "surviveTurnCount": 0,
-            "targetX": 0,
-            "targetY": 0,
+            "targetX": 7,
+            "targetY": 7,
             "targetInteractableId": "",
             "targetTiles": [
                 {
-                    "x": 0,
-                    "y": 0
+                    "x": 7,
+                    "y": 7
                 }
             ]
-        },
-        {
-            "winConditionType": 2,
-            "surviveTurnCount": 10,
-            "targetX": 0,
-            "targetY": 0,
-            "targetInteractableId": "",
-            "targetTiles": []
         }
     ],
     "loseWhenSeen": true

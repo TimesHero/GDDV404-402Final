@@ -391,30 +391,86 @@
     "units": [
         {
             "unitId": "Player_sus",
-            "x": 0,
-            "y": 2,
-            "rotationY": 0,
-            "team": "Player"
-        },
-        {
-            "unitId": "Player_sus",
-            "x": 0,
+            "x": 1,
             "y": 0,
             "rotationY": 0,
-            "team": "Player"
+            "useCardinalFacing": false,
+            "team": "Player",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 1,
+            "patrolStartY": 0,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         },
         {
-            "unitId": "Player_sus",
+            "unitId": "Enemy_test1",
             "x": 2,
-            "y": 0,
-            "rotationY": 0,
-            "team": "Player"
+            "y": 3,
+            "rotationY": 90,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 2,
+            "hasPatrolRoute": false,
+            "patrolStartX": 2,
+            "patrolStartY": 3,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Enemy_test1",
+            "x": 1,
+            "y": 5,
+            "rotationY": 270,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 2,
+            "hasPatrolRoute": false,
+            "patrolStartX": 1,
+            "patrolStartY": 5,
+            "patrolEndX": 0,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Enemy_test1",
+            "x": 3,
+            "y": 5,
+            "rotationY": 90,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 1,
+            "hasPatrolRoute": true,
+            "patrolStartX": 3,
+            "patrolStartY": 5,
+            "patrolEndX": 4,
+            "patrolEndY": 0
+        },
+        {
+            "unitId": "Enemy_test1",
+            "x": 6,
+            "y": 6,
+            "rotationY": 180,
+            "useCardinalFacing": true,
+            "team": "Enemy",
+            "enemyBehavior": 0,
+            "hasPatrolRoute": false,
+            "patrolStartX": 6,
+            "patrolStartY": 6,
+            "patrolEndX": 0,
+            "patrolEndY": 0
         }
     ],
-    "interactables": [],
+    "interactables": [
+        {
+            "interactableId": "barrel_01",
+            "x": 2,
+            "y": 0,
+            "rotationY": 0
+        }
+    ],
     "objectives": [
         {
-            "winConditionType": 3,
+            "winConditionType": 4,
             "surviveTurnCount": 0,
             "targetX": 7,
             "targetY": 7,
@@ -423,16 +479,9 @@
                 {
                     "x": 7,
                     "y": 7
-                },
-                {
-                    "x": 7,
-                    "y": 5
-                },
-                {
-                    "x": 4,
-                    "y": 4
                 }
             ]
         }
-    ]
+    ],
+    "loseWhenSeen": true
 }

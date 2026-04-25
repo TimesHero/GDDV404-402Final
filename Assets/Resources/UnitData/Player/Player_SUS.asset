@@ -18,17 +18,17 @@ MonoBehaviour:
   maxHP: 10
   attackPower: 5
   defense: 0
-  movementPoints: 5
+  movementPoints: 4
   attackRange: 1
   canAttackMultipleTimesPerTurn: 0
   attacksPerTurn: 1
   canBackstab: 1
   backstabDamageMultiplier: 2
   backstabBonusDamage: 1
-  maxClimbHeight: 5
+  maxClimbHeight: 1
   canHideInBarrel: 1
-  hiddenMovementPreset: 2
-  customHiddenMovementDivisor: 2
+  hiddenMovementPreset: 0
+  customHiddenMovementDivisor: 1
   movementSpeedWhileHidden: 0
   canPush: 1
   pushDistance: 1
@@ -38,6 +38,7 @@ MonoBehaviour:
   pushDistancePerWeightDifference: 0
   visionRange: 5
   visionAngle: 90
+  canNoticeBarrelLayoutChanges: 0
   footprintSize: {x: 1, y: 1}
   useRotationPresets: 0
   rotation0Preset:
